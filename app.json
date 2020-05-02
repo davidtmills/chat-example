@@ -1,11 +1,12 @@
 {
-  "name": "Socket-Chat-Example",
-  "description": "my first socket.io app",
-  "website": "https://github.com/socketio/chat-example",
-  "repository": "https://github.com/socketio/chat-example",
-  "logo": "https://node-js-sample.herokuapp.com/node.svg",
+  "name": "Virtual Cards",
+  "description": "Universal card playing app",
+  "website": "",
+  "repository": "",
+  "logo": "",
   "success_url": "/",
   "keywords": [
+    "cards",
     "node",
     "express",
     "socket.io",
@@ -17,6 +18,6 @@
   "addons": [
   ],
   "env": {
-    "BUILDPACK_URL": "https://github.com/heroku/heroku-buildpack-nodejs"
+    "BUILDPACK_URL": ""
   }
 }

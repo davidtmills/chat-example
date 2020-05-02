@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <title>Cards</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Card Deck">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon" sizes="128x128" href="/img/icon.png">
+    <link rel="apple-touch-startup-image" href="/img/icon.png">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="/css/draganddrop.css">
+    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.7.6/handlebars.min.js" crossorigin="anonymous"></script>
+    <script id="objects" src="/obj/card.js"></script>
+    <script id="objects" src="/obj/room.js"></script>
+    <script id="objects" src="/obj/game.js"></script>
+    <script id="objects" src="/obj/player.js"></script>
+    <script id="objects" src="/obj/user.js"></script>
+    <script id="objects" src="/obj/stack.js"></script>
+    <script id="objects" src="/obj/application.js"></script>
+    <!--script id="objects" src="/js/draganddrop.js"></script-->
+    <style id="game-css"></style>
+
+<!-- ###### TOAST TEMPLATE ###### -->
+    <script id="toast-template" type="text/x-handlebars-template">{{#with this.ctx}}
+      <div id="{{id}}" data-delay="{{#unless delay}}3000{{/unless}}{{delay}}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+          <strong class="mr-auto">{{#if title}}{{title}}{{else}}{{sender.name}}{{/if}}</strong>
+          <small class="text-muted">{{time}}</small>
+          <button type="button" class="ml-2 mb-1 close" data-dismiss="toast" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="toast-body {{css}}">
+          <span class="message"{{#if icon}} emoji="{{{icon}}}"{{/if}}>{{{text}}}</span>
+        </div>
+      </div>
+    {{/with}}</script>
+
+<!-- ###### CARD TEMPLATE ###### -->
+    <script id="card-template" type="text/x-handlebars-template">{{#with this.ctx}}
+      <div class="pcard card-item{{#if selected}} sel{{/if}}{{#if menu}} card-menu{{/if}}" card="{{key}}" card-face="{{face}}" card-player="{{#if prevStack.owner.name}}{{prevStack.owner.name}}{{/if}}">
+        <div class="card-face" style="{{styles}}"></div>
+        <button class="card-btn" type="button" id="{{key}}Button" {{#unless selectable}}disabled{{/unless}} {{#if menu}}data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"{{/if}}></button>
+        {{#if menu}}<div class="dropdown-menu" aria-labelledby="{{key}}Button"></div>{{/if}}
+      </div>
+    {{/with}}</script>
+
+<!-- ###### DDITEM TEMPLATE ###### -->
+    <script id="dditem-template" type="text/x-handlebars-template">{{#with this.ctx}}<button class="dropdown-item" href="#" item="{{key}}">{{label}}</button>{{/with}}</script>
+
+<!-- ###### LIST TEMPLATE ###### -->
+    <script id="list-template" type="text/x-handlebars-template">{{#with this.ctx}}{{#each this}}{{#if label}}<{{#if tag}}{{tag}}{{else}}button type="button"{{/if}} {{#if css}}class="{{css}}"{{/if}} {{#each attr}} {{@key}}="{{{this}}}"{{/each}}>{{label}}</{{#if tag}}{{tag}}{{else}}button{{/if}}>{{else}}<div class="dropdown-divider"></div>{{/if}}{{/each}}{{/with}}</script>
+
+<!-- ###### ACTION LIST TEMPLATE ###### -->
+    <script id="actionlist-template" type="text/x-handlebars-template">{{#with this.ctx}}{{#each this}}{{#if label}}<button type="button" class="dropdown-item" {{#if context}}{{context}}{{else}}stack{{/if}}-action="{{key}}"{{#each attr}} {{@key}}="{{this}}"{{/each}}>{{label}}</button>{{else}}<div class="dropdown-divider"></div>{{/if}}{{/each}}{{/with}}</script>
+
+<!-- ###### STACK TEMPLATE ###### -->
+    <script id="stack-template" type="text/x-handlebars-template">{{#with this.ctx}}
+      <div stack="{{key}}" class="stack {{css}} {{#unless viewable}}hidden{{/unless}}" style="{{styles}}" stack-group="{{group}}" stack-layout="{{layout}}" stack-face="{{face}}" stack-owner="{{owner.key}}" stack-owner_name="{{owner.name}}" card-action="{{cardAction}}">
+        <div class="dropdown stack-menu">
+          <button {{#unless actionable}}disabled{{/unless}} class="btn btn-sm dropdown-toggle py-0 my-1 text-left font-weight-bold" type="button" id="{{key}}Button" prefix="{{#if owner.name}}{{owner.name}}'s{{/if}}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            {{label}}
+          </button>
+          <div class="dropdown-menu" aria-labelledby="{{key}}Button"></div>
+        </div>
+        <div class="pcards"></div>
+      </div>
+    {{/with}}</script>
+
+<!-- ###### GAME AREA TEMPLATE ###### -->
+    <script id="gamearea-template" type="text/x-handlebars-template">{{#with this.ctx}}
+      <div id="header" class="navbar-light bg-light">
+        <div class="dropdown flex-grow-1 flex-shrink-0">
+          <button class="btn dropdown-toggle" type="button" id="gameMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+            <span propname="title" propval="{{game.title}}">{{game.title}}{{#unless game.title}}Game Menu{{/unless}}</span>
+          </button>
+          <ul class="dropdown-menu" aria-labelledby="gameMenuDropdown">
+              {{#if game.trumps}}
+                <li class="dropdown-submenu">
+                  <button class="dropdown-item" type="button">Bid</button>
+                  <ul class="dropdown-menu">
+                    <li class="dropdown-header">Trump</li>
+                    {{#each game.trumps}}
+                      <li><button class="dropdown-item text-capitalize btn-sm" data-action="setTrump" data-target="{{this}}">{{this}}</button></li>
+                    {{/each}}
+                    <li class="dropdown-divider"></li>
+                    <li><button class="dropdown-item" type="button" data-action="pass">Pass</button></li>
+                  </ul>
+                </li>
+              {{/if}}
+                <li class="dropdown-submenu if-dealer">
+                  <button class="dropdown-item" type="button">Next Player</button>
+                  <ul class="dropdown-menu">
+                    <li class="dropdown-header">Player</li>
+                    {{#each game.players}}
+                      <li><button class="dropdown-item text-capitalize btn-sm" data-action="activePlayer" player-key="{{key}}">{{name}}</button></li>
+                    {{/each}}
+                  </ul>
+                </li>
+                <li><button class="dropdown-item" type="button" data-toggle="modal" data-target="#dlgGameStart">New Deal</button></li>
+                <li class="if-dealer"><button class="dropdown-item" type="button" data-toggle="modal" data-target="#dlgGames">Change Game</button></li>
+              <li class="dropdown-divider"></li>
+              <li><button class="dropdown-item" type="button">Scores</button></li>
+              <li><button class="dropdown-item" type="button">Rules</button></li>
+              <li class="dropdown-divider"></li>
+            <li><button class="dropdown-item" type="button" data-toggle="modal" data-target="#dlgJoinGame">{{#if game}}Leave Game{{else}}Join Game{{/if}}</button></li>
+          </ul>
+        </div>
+        {{#if game.trumps}}
+        <div class="mx-0 px-0 text-capitalize align-self-center flex-shrink-0 text-muted propval-before" propname="trump" propval=""></div>
+        {{/if}}
+        <div class="dropdown flex-shrink-0">
+          <button class="btn" type="button" id="mainMenuButton" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <ul id="mainMenu"class="dropdown-menu" aria-labelledby="mainMenuDropdown">
+            <li><button class="dropdown-item" type="button" data-toggle="modal" data-target="#dlgUserSettings">Settings</button></li>
+            <li class="dropdown-divider"></li>
+            <li><button class="dropdown-item" type="button" onclick="console.log(_app)">Debug</button></li>
+            <li><button class="dropdown-item" type="button" onclick="console.log(_app.game['state'])">Game State</button></li>
+            <li><button class="dropdown-item" type="button" onclick="console.log(JSON.stringify(_app.game))">Game JSON</button></li>
+            <li><button class="dropdown-item" type="button" data-toggle="modal" data-target="#dlgGameStart">Sign Out</button></li>
+          </ul>
+        </div>
+      </div>
+      <div id="player-area"><div area="p1" class="flow"></div><div area="p2" class="flow"></div><div area="p3" class="flow"></div><div area="p4" class="flow"></div><div area="p5" class="flow"></div></div>
+      <div id="table-area"><div area="t1" class="flow"></div><div area="t2" class="flow"></div><div area="t3" class="flow"></div><div area="t4" class="flow"></div><div area="t5" class="flow"></div></div>
+      <div id="footer">
+        <div class="input-group">
+          <div class="input-group-prepend">
+            <div class="dropdown">
+              <button style="font-size:1.5rem;" class="btn btn-small py-0 px-1" type="button" id="gameMsgMenuButton" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false">&#x1F4AC;<span class="sr-only"> favorite messages</span></button>
+              <div id="gameMsgMenu" class="dropdown-menu" aria-labelledby="gameMsgMenuButton">
+                <button data-action="sendMessage" emoji="&#x1f600;" type="button" class="dropdown-item emoji-xsm py-1 pl-2">Nice!</button>
+                <button data-action="sendMessage" emoji="&#x1f632;" type="button" class="dropdown-item emoji-xsm py-1 pl-2">Oh no!</button>
+                {{#if game.config.chat}}<div class="dropdown-divider"></div>{{/if}}
+                {{#each game.config.chat}}
+                <button data-action="sendMessage" emoji="{{part this index=1}}" type="button" class="dropdown-item emoji-xsm py-1 pl-2">{{part this index=0}}</button>
+                {{/each}}
+              </div>
+            </div>
+          </div>
+          <input id="message-text" type="text" class="form-control" placeholder="message &hellip;" aria-label="Chat message" aria-describedby="basic-addon2">
+          <div class="input-group-append">
+            <div class="btn-group">
+              <button data-action="sendMessage" data-target="#message-text" class="btn btn-small pr-2 py-0 rounded-0 btn-secondary" type="button">Send</button>
+              <button style="border-left:1px solid rgba(0,0,0,.25);" class="btn btn-small py-0 px-0 rounded-right btn-secondary emoji-xsm" emoji="&#x1f600;" type="button" id="emojiMenuButton" data-toggle="dropdown" data-boundary="viewport" aria-haspopup="true" aria-expanded="false"><span class="sr-only">&#x2665;</span></button>
+              <div id="emojiMenu"class="dropdown-menu" aria-labelledby="emojiMenuButton">
+                {{~#each emojis}}
+                <button data-action="sendMessage" data-target="#message-text" emoji="{{{html}}}" alt="{{alt}}" type="button" class="dropdown-item"></button>
+                {{~/each~}}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {{/with}}</script>
+
+<!-- ###### JOIN GAME DIALOG TEMPLATE ###### -->
+    <script id="dlgJoinGame-template" type="text/x-handlebars-template">{{#with this.ctx}}
+      <div class="modal-dialog modal-sm modal-dialog-centered x-modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+          <div class="modal-header py-2 bg-light">
+            <h6 class="modal-title" id="dlgJoinGameTitle">Play Game</h6>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body py-2 px-3">
+              <div class="form-group">
+                <label for="joinGameCode">Game Code</label>
+                <div class="input-group">
+                  <input type="text" class="form-control text-uppercase" id="joinGameCode" aria-describedby="joinGameCodeHelp" placeholder="6-digit Code" maxlength="6" value="">
+                  <div class="input-group-append">
+                    <button id="joinRoomButton" type="button" class="btn btn-primary" data-action="joinRoom" access-code="">Join</button>
+                  </div>
+                </div>
+                <small id="joinGameCodeHelp" class="form-text text-muted">If you were given a code enter it here</small>
+              </div>
+
+              <div class="form-group">
+                <div class="btn-group">
+                  <button class="btn rounded btn-primary mr-2" type="button" data-toggle="modal" data-target="#dlgGames" data-dismiss="modal" aria-haspopup="true" aria-expanded="false">
+                    Quick Play
+                  </button>
+
+                  <button class="btn btn-outline-primary rounded" type="button" aria-haspopup="true" aria-expanded="false" {{#if isHost}}data-toggle="modal" data-target="dlgGames"{{else}}data-action="createRoom"{{/if}} data-dismiss="modal">
+                    Host a Game
+                  </button>
+                </div>
+              </div>
+          </div>
+        </div>
+      </div>
+    {{/with}}</script>
+
+<!-- ###### USER SETTINGS DIALOG TEMPLATE ###### -->
+    <script id="dlgUserSettings-template" type="text/x-handlebars-template">{{#with this.ctx}}
+      <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header py-2 bg-light">
+            <h6 class="modal-title" id="dlgUserSettingsTitle">Player Settings</h6>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body py-2 px-3">
+            <style>
+            [data-action="setCardSize"] { color:#999; font-weight:bold; }
+            body.card-sm [data-action="setCardSize"][data-args="card-sm"],
+            body.card-md [data-action="setCardSize"][data-args="card-md"],
+            body.card-lg [data-action="setCardSize"][data-args="card-lg"] {
+              color: #212529;
+            }
+            </style>
+              <div class="form-group">
+                <label for="profileName">Player Name</label>
+                <input type="text" class="form-control" id="profileName" aria-describedby="profileNameHelp" placeholder="Enter a nickname" onblur="_app.user.name=this.value;console.log(_app.user.name)" value="{{user.name}}">
+                <small id="profileNameHelp" class="form-text text-muted">This is the name other users will see</small>
+              </div>
+              <div class="form-group">
+                <label for="profileCardSize">Card Size</label>
+                <div id="profileCardSize" class="btn-group border rounded w-100">
+                  <button class="btn btn-sm btn-light" type="button" data-action="setCardSize" data-args="card-sm">Small</button>
+                  <button class="btn btn-sm btn-light" type="button" data-action="setCardSize" data-args="card-md">Medium</button>
+                  <button class="btn btn-sm btn-light" type="button" data-action="setCardSize" data-args="card-lg">Large</button>
+                </div>
+              </div>
+              {{#if game~}}
+              <div class="form-group">
+                <label for="profileName">Game Code</label>
+                <input disabled type="text" class="form-control" id="profileGameCode" aria-describedby="profileGameCodeHelp" placeholder="No Game" value="{{room.accessCode}}">
+                <small id="profileGameCodeHelp" class="form-text text-muted">Share this code to play with friends.</small>
+              </div>
+              {{~/if~}}
+              <div class="form-group mb-1">
+                <button data-toggle="modal" data-target="#dlgJoinGame" data-dismiss="modal" type="button" class="btn {{#if game}}btn-danger{{else}}btn-primary{{/if}} form-control">{{#if game}}Leave Game{{else}}Play a Game{{/if}}</button>
+              </div>
+          </div>
+
+        </div>
+      </div>
+    {{/with}}</script>
+
+<!-- ###### GAME START DIALOG TEMPLATE ###### -->
+    <script id="dlgGameStart-template" type="text/x-handlebars-template">{{#with this.ctx}}
+      <div class="modal-dialog modal-sm modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+          <div class="modal-header py-2 bg-light">
+            <h6 class="modal-title" id="dlgGameStartTitle">Select Players</h6>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body pb-0">
+            <form>
+              <div class="form-group">
+                <label for="joinGamePlayers">Dealer</label>
+                <div class="dropdown border rounded">
+                  <button id="dlgGameStart_dealer" data-placeholder="Player 1" dealer-key="{{game.dealer.key}}" class="btn my-0 text-left down-arrow w-100" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{game.dealer.name}}</button>
+                  <div class="dropdown-menu w-100" aria-labelledby="player-{{@index}}Button">
+                    <button data-action="select" data-target="#dlgGameStart_dealer" data-args="html|player-key:dealer-key" player-key="" player-name="" data-placeholder="no selection" type="button" class="dropdown-item"></button>
+                    {{#each @root.app.room.users}}
+                    <button data-action="select" data-target="#dlgGameStart_dealer" data-args="html|player-key:dealer-key" player-key="{{key}}" player-name="{{name}}" type="button" class="dropdown-item">{{name}}</button>
+                    {{/each}}
+                  </div>
+                </div>
+              </div>
+              <div class="form-group mb-2">
+                <label for="joinGamePlayers">Access Code</label>
+                <div class="input-group">
+                  <input id="dlgGameStart_accessCode" readonly class="form-control bg-light" type="textbox" value="{{room.accessCode}}" />
+                  <div class="input-group-append">
+                    <button type="button" class="btn btn-primary" onclick="c = _app.randomCode(6); _app.room.accessCode = c; $('#dlgGameStart_accessCode').val(c);">&#8634;</button>
+                  </div>
+                </div>
+              </div>
+              <div class="form-group form-check">
+                <input type="checkbox" class="form-check-input pl-4" id="isPrivate" {{#if room.isPrivate}}checked{{/if}} onchange="_app.room.isPrivate = this.checked">
+                <label class="form-check-label pl-1" for="isPrivate">require code to join game</label>
+              </div>
+              <div class="form-group">
+                <label for="joinGamePlayers" class="w-100">Players<span class="badge badge-info float-right mt-1">{{room.numUsers}} in room</span></label>
+                {{#each @root.app.game.seats}}
+                <div class="input-group mb-1 border rounded">
+                  <div class="input-group-prepend border-0">
+                    <div class="input-group-text text-center rounded-left">
+                      <span class="small" style="min-width:1.5rem">{{ordinal @index}}</span>
+                    </div>
+                  </div>
+                  <div class="flex-grow-1">
+                    <button data-prop="player" id="dlgGameStart_player_{{@index}}" data-placeholder="select a player &hellip;" player-key="{{key}}" player-name="{{name}}" class="btn my-0 text-left w-100 down-arrow" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{name}}</button>
+                    <div class="dropdown-menu" style="min-width:11rem;" aria-labelledby="player-{{@index}}Button">
+                      <button data-action="select" data-target="#dlgGameStart_player_{{@index}}" data-args="html|player-key|player-name" data-placeholder="no selection" type="button" class="dropdown-item" player-key="" player-name=""></button>
+                      {{#each @root.app.room.users}}
+                      <button data-action="select" data-target="#dlgGameStart_player_{{../index}}" data-args="html|player-key|player-name" player-key="{{key}}" player-name="{{name}}" type="button" class="dropdown-item">{{name}}</button>
+                      {{/each}}
+                    </div>
+                  </div>
+                </div>
+                {{/each}}
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer flex-row-reverse py-1">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" data-action="startGame" data-dismiss="modal">Deal</button>
+          </div>
+        </div>
+      </div>
+    {{/with}}</script>
+
+<!-- ###### PLAYERS DIALOG TEMPLATE ###### -->
+    <script id="dlgPlayers-template" type="text/x-handlebars-template">{{#with this.ctx}}
+      <div class="modal-dialog modal-sm modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+          <div class="modal-header py-2 bg-light">
+            <h6 class="modal-title" id="dlgPlayersTitle">Game Players</h6>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form>
+              {{#each game.players}}
+              <div class="form-group">
+                <label for="joinName">Player {{seat}}</label>
+                <div class="dropdown">
+                  <button class="btn" type="button" id="player{{@index}}Button" data-toggle="dropdown dropdown-toggle" data-boundary="viewport" aria-haspopup="true" aria-expanded="false">
+                    {{name}}
+                  </button>
+                  <div id="mainMenu"class="dropdown-menu" aria-labelledby="player{{@index}}Dropdown">
+                    {{#each game.players}}
+                    <button class="dropdown-item" type="button" data-action="addPlayer" data-target="{{key}}" data-args="{{}}">Settings</button>
+                  </div>
+                </div>
+              </div>
+              {{/each}}
+              <button type="button" class="btn btn-primary" data-action="startGame" data-dismiss="modal">Deal</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    {{/with}}</script>
+
+<!-- ###### GAMES DIALOG TEMPLATE ###### -->
+    <script id="dlgGames-template" type="text/x-handlebars-template">{{#with this.ctx}}
+      <div class="modal-dialog modal-sm modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+          <div class="modal-header py-2 bg-light">
+            <h6 class="modal-title" id="dlgGamesTitle">Select a Game &hellip;</h6>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body p-1">
+            <div class="list-group">
+              {{#each gameConfigs}}
+                <button type="button" class="list-group-item list-group-item-action" data-action="gameType" game-type="{{@key}}" data-dismiss="modal">{{title}}</button>
+              {{/each}}
+            </div>
+          </div>
+        </div>
+      </div>
+    {{/with}}</script>
+
+<!-- ###### CHAT HISTORY DIALOG TEMPLATE ###### -->
+    <script id="dlgChat-template" type="text/x-handlebars-template">{{#with this.ctx}}
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+          <div class="modal-header bg-light py-2">
+            <h6 class="modal-title" id="dlgChatTitle">Select a message ...</h6>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body p-0">
+            <div id="chat-messages" class="list-group list-group-flush" emptytext="There are no default messages.">
+            </div>
+          </div>
+        </div>
+      </div>
+    {{/with}}</script>
+  </head>
+  <body class="role-host role-dealer card-md">
+    <div id="gamearea"></div>
+    <div id="toasts" aria-live="polite" aria-atomic="true" ></div>
+    <div class="modal" id="dlgJoinGame" tabindex="-1" role="dialog" aria-labelledby="dlgJoinGameTitle" aria-hidden="true"></div>
+    <div class="modal" id="dlgGameStart" tabindex="-1" role="dialog" aria-labelledby="dlgGameStartTitle" aria-hidden="true"></div>
+    <div class="modal" id="dlgGames" tabindex="-1" role="dialog" aria-labelledby="dlgGamesTitle" aria-hidden="true"></div>
+    <div class="modal" id="dlgChat" tabindex="-1" role="dialog" aria-labelledby="dlgChatTitle" aria-hidden="true"></div>
+    <div class="modal" id="dlgUserSettings" tabindex="-1" role="dialog" aria-labelledby="dlgUserSettingsTitle" aria-hidden="true"></div>
+    <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
+    <script src="/js/app.js"></script>
+     <div id="image-cache" style="position:absolute; top:-1px; left:-1px; height:1px !important;width:1px !important;overflow:hidden !important;">
+       <img src="/img/quiddler.png" onload="console.log('Loaded: ' + this.src)"/>
+       <img src="/img/cards.png" onload="console.log('Loaded: ' + this.src)"/>
+     </div>
+  </body>
+</html>

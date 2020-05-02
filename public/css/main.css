@@ -1,0 +1,425 @@
+body {
+  --xPixels: 90px;
+  --yPixels: 135px;
+  --smScale: .5;
+  --mdScale: .75;
+  --lgScale: 1;
+  --cardScale: .75;
+  --cardW: 67.5px;
+  --cardH: 101.25px;
+  --cardFont: .75rem;
+}
+
+/* Descendant card sizing */
+.card-xsm { --cardScale: .5; --cardW: 45px; --cardH: 67.5px; --cardFont: .6rem; }
+.card-sm { --cardScale: .75; --cardW: 67.5px; --cardH: 101.25px; --cardFont: .75rem; }
+.card-md { --cardScale: 1; --cardW: 90px; --cardH: 135px; --cardFont: .9rem; }
+.card-lg { --cardScale: 1.5; --cardW: 135px; --cardH: 202.5px; --cardFont: 1.1rem; }
+/* Explicit card sizing */
+.card-xsm.card-item { --cardScale: .5; --cardW: 45px; --cardH: 67.5px; --cardFont: .6rem; }
+.card-sm.card-item { --cardScale: .75; --cardW: 67.5px; --cardH: 101.25px; --cardFont: .75rem; }
+.card-md.card-item { --cardScale: 1; --cardW: 90px; --cardH: 135px; --cardFont: .9rem; }
+.card-lg.card-item { --cardScale: 1.5; --cardW: 135px; --cardH: 202.5px; --cardFont: 1.1rem; }
+
+[data-placeholder]:empty::before {
+  content:attr(data-placeholder);
+  font-style: italic;
+  opacity:.25;
+}
+
+.down-arrow {
+  padding-right:1.5rem;
+  overflow-x:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.down-arrow::after {
+  display: inline-block;
+  position: absolute;
+  right: .5rem;
+  content: "\276f"; /*25bc down*/
+  transform:rotate(90deg);
+  opacity:.15;
+}
+
+*:not(input):not(textarea) {
+     -moz-user-select: none; /* Firefox */
+      -ms-user-select: none; /* Internet Explorer */
+   -khtml-user-select: none; /* KHTML browsers (e.g. Konqueror) */
+  -webkit-user-select: none; /* Chrome, Safari, and Opera */
+  -webkit-touch-callout: none; /* Disable Android and iOS callouts*/
+}
+
+/* BUTTON inside card-item that provides card action */
+.card-btn {
+  position:absolute;
+  top:0;
+  left:0;
+  transform-origin: top left;
+  display:block;
+  width:100%;
+  height:100%;
+  border-radius:3px;
+  background-color:transparent;
+  border-style:none;
+  x-box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+  box-shadow: none;
+  outline: 0;
+}
+.card-btn:focus {
+  outline:1px auto -webkit-focus-ring-color;
+}
+
+/* DIV inside card-item that holds the bg image of the card face */
+.card-face {
+  position:absolute;
+  top:0;
+  left:0;
+  transform:scale(calc(var(--cardScale)));
+  transform-origin: top left;
+  display:block;
+  width:calc(var(--xPixels));
+  height:calc(var(--yPixels));
+  border:1px solid #666;
+  margin:0;
+  padding:0;
+  background-image: url(/img/cards.png);
+  background-repeat:no-repeat;
+  border-radius:3px;
+  overflow:hidden;
+}
+
+/* Top=level container for a card */
+.card-item {
+  position:relative;
+  display:inline-block;
+  height:var(--cardH);
+  width:var(--cardW);
+}
+
+.font-smallcaps {
+  font-variant: small-caps;
+}
+
+.modal-title {
+  color:#666;
+  font-weight:600;
+  font-variant: small-caps;
+}
+
+.dropdown-header {
+  color:#ccc;
+  font-weight:600;
+  font-variant: small-caps;
+  padding-top:0;
+  padding-bottom:0;
+}
+
+/*** Submenu support *****/
+.dropdown-menu {
+  min-width:5rem;
+}
+
+.dropdown-submenu {
+  position: relative;
+}
+
+#cards-to-sort li {
+  display:inline-block;
+}
+
+/* add a right arrow to submenu items */
+.dropdown-submenu > button:first-child::after {
+  position:absolute;
+  right:.5rem;
+  display:inline-block;
+  color:#ddd;
+  font-weight:bold;
+  content:'\276f';
+}
+
+/* add a right arrow to submenu items */
+.dropdown-submenu.submenu-left > button:first-child::after {
+  left:.5rem;
+  right:auto;
+  content:'\276e';
+}
+
+.dropdown-submenu .dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin: -.5rem -1rem;
+}
+
+.dropdown-submenu.submenu-left .dropdown-menu {
+  left:auto;
+  right: 100%;
+}
+
+#toasts {
+  position:fixed;
+  bottom:3rem;
+  right:0;
+  min-width:16rem;
+  font-size:smaller;
+}
+
+.toast:not(:last-child) {
+    margin-bottom:.25rem;
+}
+
+.toast-body {
+  color:#444;
+}
+
+.toast-body > .emoji + .message {
+  font-weight:bold;
+  color:#888;
+}
+
+/* Lighten menu highlighting */
+.list-group-item-action:hover,
+.list-group-item-action:focus,
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background-color:rgba(248,249,250,1);
+  color:#495057;
+  outline:1px solid rgba(220,221,222,.5);
+}
+
+.list-group-item-action:active,
+.dropdown-item:active,
+.dropdown-item.active {
+  background-color:rgba(240,241,242,1);
+  color:#212529;
+  outline:1px solid rgba(220,221,222,.5);
+}
+
+/* hide menu if it has no items */
+.dropdown-menu.show:empty::before {
+  display:inline-block;
+  content:"no options available";
+  color:#ccc;
+  font-style: italic;
+  font-size:.8em;
+  white-space:nowrap;
+  padding: 0 .5rem;
+}
+
+/* Reduce the size of dropdown menus globally */
+.dropdown-menu .dropdown-item {
+  padding: .25rem 1.5rem;
+  font-size: .875rem;
+  line-height: 1.5;
+  border-radius: .2rem;
+}
+
+body { background-color:green; padding-bottom:3rem; padding-top:2.5rem; }
+
+body:not(.role-host) .if-host,
+body:not(.role-dealer):not(.role-host) .if-dealer,
+body:not(.role-active) .if-active { display:none !important; }
+
+#header { display:flex; position:fixed; justify-content:space-between; border-bottom:1px solid #eee; width:100%; top:0; height:2.5rem; z-index:1; }
+#footer { position:fixed; z-index:1; bottom:0; left:0; width:100%; margin:0; background-color:white; padding:.25rem;  }
+#player-area { box-sizing:border-box; background-color:white; overflow:scroll; }
+#table-area { box-sizing:border-box; overflow:scroll; overflow:scroll;  }
+#table-area .dropdown.stack-menu > button.btn:first-child { color:white; }
+
+/*** Make sure Game Title doesn't push the user menu off the page ***/
+#gameMenuButton > * { display:inline-block; vertical-align:middle; max-width:65vw !important; overflow:hidden; text-overflow: ellipsis; }
+
+/***** Emoji Styles *************/
+[emoji]::before,
+.emoji::before {
+  content:attr(emoji); vertical-align:middle; display:inline-block; font-weight:normal; padding:0 .5rem;
+  font-family:"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Times, Symbola, Aegyptus, Code2000, Code2001, Code2002, Musica, serif, LastResort
+ }
+[emoji]:not(.emoji-em)::before,
+.emoji:not(.emoji-em)::before { font-size:2rem; }
+.emoji-xxlg [emoji]::before, .emoji-xxlg[emoji]::before,
+.emoji-xxlg .emoji::before, .emoji-xxlg.emoji::before { font-size:6rem !important; }
+.emoji-xlg [emoji]::before, .emoji-xlg[emoji]::before,
+.emoji-xlg .emoji::before, .emoji-xlg.emoji::before { font-size:4rem !important; }
+.emoji-lg [emoji]::before, .emoji-lg[emoji]::before,
+.emoji-lg .emoji::before, .emoji-lg.emoji::before { font-size:3rem !important; }
+.emoji-sm [emoji]::before, .emoji-sm[emoji]::before,
+.emoji-sm .emoji::before, .emoji-sm.emoji::before { font-size:1.5rem !important; padding:0 .25rem; }
+.emoji-xsm [emoji]::before, .emoji-xsm[emoji]::before,
+.emoji-xsm .emoji::before, .emoji-xsm.emoji::before { font-size:1.25rem !important; padding:0 .25rem; }
+.emoji-xxsm [emoji]::before, .emoji-xxsm[emoji]::before,
+.emoji-xxsm .emoji::before, .emoji-xxsm.emoji::before { font-size:1rem !important; padding:0 .25rem; }
+.emoji-em [emoji]::before, .emoji-em[emoji]::before,
+.emoji-em .emoji::before, .emoji-em.emoji::before { font-size:inherit !important; padding:0 .5em; }
+
+
+/*** Card Icons need to be large font and not bolded to be readable ****/
+[card-icon]::before { content:attr(card-icon); display:inline-block; font-family:inherit; font-size:4rem; font-weight:normal !important; background-color:white; margin:1px; border-radius:.025em; line-height:79%; padding:0 0 .4rem 0 !important; vertical-align:middle; }
+[card-icon][card-suit='\60']::before, [card-icon][card-suit='spades']::before, [card-icon][card-suit='Spades']::before { color:black; }
+[card-icon][card-suit='\63']::before, [card-icon][card-suit='clubs']::before, [card-icon][card-suit='Clubs']::before { color:black; }
+[card-icon][card-suit='\65']::before, [card-icon][card-suit='hearts']::before, [card-icon][card-suit='Hearts']::before { color:red; }
+[card-icon][card-suit='\66']::before, [card-icon][card-suit='diamonds']::before, [card-icon][card-suit='Diamonds']::before { color:red; }
+
+[card-icon]::before {
+  content:attr(card-icon); display:inline-block; vertical-align:middle; font-size:15rem; line-height:100%; background-color:white; padding:0;
+  color: #000000;
+  box-shadow: inset 0.85rem 1.9rem 0 0 rgba(0,128,0,1), inset -0.85rem -1.2rem 0 0 rgba(0,128,0,1);
+  background: #ffffff;
+}
+
+.red [card-icon]::before { color:red !important; }
+
+/*** Make Emoji Menu tile menu items instead of vertical stack ***/
+#emojiMenu {
+  flex-flow: row wrap;
+}
+
+#emojiMenu > button {
+   display:inline-block;
+   width:auto;
+   padding:0 .35rem;
+   font-size:125%;
+}
+
+.hidden { display:none !important; }
+
+.flow { display:flex; flex-wrap: wrap; width:100%; }
+.flow > div { border:1px dashed rgba(255,255,255,.25); border-radius:.5em; margin:.25em; padding:0 .25em; box-sizing:border-box; }
+#player-area .flow > div { border-color: #ccc; }
+
+h5 { min-width:125px; }
+
+.menu { padding:6px 3px; }
+.menu a { display:inline-block; text-decoration:none; padding:3px 5px; border:1px solid #ccc; border-radius:3px; margin:1px; text-align: center; }
+
+/*** Display default text when an element is empty ***/
+*[emptytext]:empty::before {
+  display:block;
+  padding:1rem;
+  content:attr(emptytext);
+  opacity:.5;
+}
+
+/*** Container for a collection of cards, used in stacks ***/
+.pcards { min-width:100px; min-height:calc(var(--cardH) + 15px); font-size:calc(var(--cardFont)); white-space:nowrap; overflow:scroll; max-width:95vw; padding:10px 5px 5px 5px; position:relative; box-sizing: border-box; }
+
+
+/*** Lift and apply inner shadow to selected cards ****/
+.card-item.sel {
+  top:-10px;
+}
+.card-item.sel .card-btn {
+  -webkit-box-shadow: inset 2px 2px 20px 0px rgba(64,64,255,.25);
+  -moz-box-shadow: inset 2px 2px 20px 0px rgba(64,64,255,.25);
+  box-shadow: inset 2px 2px 20px 0px rgba(64,64,255,.25);
+}
+.card-item.pressed .card-btn {
+  -webkit-box-shadow: inset 2px 2px 20px 0px rgba(51,51,204,.25);
+  -moz-box-shadow: inset 2px 2px 20px 0px rgba(51,51,204,.25);
+  box-shadow: inset 2px 2px 20px 0px rgba(51,51,204,.25);
+}
+
+/**** Card Footer *****/
+/* Bottom of card displays either card face or the player */
+.card-item::after { display:block; position:absolute; left:0; bottom:2px; margin:0 5%; width:90%; text-transform:capitalize; color:#444; background-color:rgba(255,255,255,.75); text-align:center; font-weight:400; line-height:1.1; font-size:.8em; overflow:hidden; text-overflow:ellipsis; border-radius:.25rem; }
+/* In the player area, show the card face state in the bottom of the card */
+#player-area .card-item::after { content: attr(card-face); }
+/* In the table area, show the player (prevStack Owner) in the bottom of the card */
+#table-area .card-item::after { content:attr(card-player);  }
+
+/* shift card menus to overlay the card itself */
+.card-menu > .dropdown-menu { margin-top:-5rem !important; margin-left:.35rem !important; min-width:5rem; }
+
+/* All layouts scroll horizontally except tile */
+[stack-layout="tile"] .pcards { white-space:normal; }
+
+/* In Player Area, Only Fan, Horiz and Tile are supported, Default is Fan */
+/* fan/default: Cards Overlapped For Condensed Display */
+#player-area [stack-layout] .card-item { margin-left:calc(-.8 * var(--cardW)); }
+#player-area [stack-layout] .card-item:first-of-type { margin-left:calc(-1 * var(--cardW) - 5px); }
+#player-area [stack-layout] .card-item[card-face='down'] + .card-item[card-face='up'] { margin-left:0px; }
+/* horiz: Horiziontal Scrolling */
+#player-area [stack-layout="horiz"] .pcards { padding-left:0; }
+/* tile: Vertical Scrolling */
+#player-area [stack-layout="tile"] .pcards { white-space:normal !important; padding-left:0; }
+/* For Player Cards, Face Down Cards are Actually Visible */
+#player-area [stack-face='down'] .card-item:not([card-face='up']), #table-area .card-item[card-face='down'] { }
+
+
+[stack-layout] .pcards { padding-left:calc(var(--cardW) + 5px); }
+[stack-layout=""] .pcards, [stack]:not([stack-layout]) .pcards { padding-left:0; }
+[stack-layout] .card-item { margin-left:0; margin-right:5px; }
+/* fan: Cards Overlapped For Condensed Display */
+#table-area [stack-layout="fan"] .card-item { margin-left:calc(-.8 * var(--cardW)); }
+#table-area [stack-layout="fan"] .card-item:first-of-type { margin-left:calc(-1 * var(--cardW) - 5px); }
+#table-area [stack-layout="fan"] .card-item[card-face='down'] + .card-item[card-face='up'] { margin-left:0px; }
+/* holdem: Flop Cards Overlapped For Condensed Display */
+#table-area [stack-layout="flop"] .card-item:nth-of-type(1) { margin-left:calc(-1 * var(--cardW) - 5px); }
+#table-area [stack-layout="flop"] .card-item:nth-of-type(2) { margin-left:calc(-.8 * var(--cardW)); }
+#table-area [stack-layout="flop"] .card-item:nth-of-type(3) { margin-left:calc(-.8 * var(--cardW)); }
+/* stack: All Cards Stacked, Only Top Card Visible */
+#table-area [stack-layout="stack"] .card-item { position:absolute; left:0; }
+/* stack-horiz: Down Cards Stacked and Up Cards Spaced */
+#table-area [stack-layout="stack-horiz"] .card-item[card-face='down'] { position:absolute; left:0; }
+#table-area [stack-layout="stack-horiz"] .card-item[card-face='up'] { margin-left:0; margin-right:5px; }
+#table-area [stack-layout="stack-horiz"] .card-item[card-face='up']:first-of-type { margin-left:calc(-1 * var(--cardW) - 5px); }
+/* stack-fan: Down Cards Stacked, Up Cards Overlapped For Condensed Display */
+#table-area [stack-layout="stack-fan"] .card-item[card-face='down'] { position:absolute; left:0; }
+#table-area [stack-layout="stack-fan"] .card-item[card-face='up'] { margin-left:calc(-.8 * var(--cardW)); }
+#table-area [stack-layout="stack-fan"] .card-item[card-face='down'] + .card-item[card-face='up'] { margin-left:0px; }
+#table-area [stack-layout="stack-fan"] .card-item[card-face='up']:first-of-type { margin-left:calc(-1 * var(--cardW) - 5px); }
+/* horiz: Horiziontal Scrolling */
+#table-area [stack-layout="horiz"] .pcards { padding-left:0; }
+/* tile: Vertical Scrolling */
+#table-area [stack-layout="tile"] .pcards { white-space:normal !important; padding-left:0; }
+/* Cross formation for first 5 cards */
+#table-area [stack-layout="cross"] .pcards { min-height:calc(3 * (var(--cardH) + 15px)); }
+#table-area [stack-layout="cross"] .card-item { top:calc(var(--cardH) + 10px); position:relative; }
+#table-area [stack-layout="cross"] .card-item:first-of-type { margin-left:calc(-1 * var(--cardW) - 5px); }
+#table-area [stack-layout="cross"] .card-item:nth-of-type(3) { top:0px; margin-left:calc(-1 * var(--cardW) - 8px); }
+#table-area [stack-layout="cross"] .card-item:nth-of-type(4) { top:calc(2 * var(--cardH) + 20px); margin-left:calc(-1 * var(--cardW) - 8px); }
+
+/* For Table Cards, Show Card Back if Face Down */
+#table-area [stack-face='down'] .card-item:not([card-face='up']) .card-face, #table-area .card-item[card-face='down'] .card-face { background-position-y: 0 !important; background-position-x: 0 !important; }
+
+.Spades, .Clubs, { display:inline-block; }
+.Diamonds, .Hearts { display:inline-block; }
+x.Spades::after { content:'\2660'; color:black; }
+x.Diamonds::after { content:'\2666'; color:red; }
+x.Clubs::after { content:'\2663'; color:black; }
+x.Hearts::after { content:'\2665'; color:red; }
+
+/*** Prefix and Suffix Styles ***/
+[prefix] { display:inline-block; }
+[prefix]::before { content:attr(prefix); }
+
+[suffix] { display:inline-block; }
+[suffix]::after { content:attr(suffix); }
+
+*.propval-after[propval]::after {
+  content:attr(propval)attr(suffix);
+}
+*.propval-before[propval]::before {
+  content:attr(prefix)attr(propval);
+}
+*.propval-before[propval=""]::before, *.propval-after[propval=""]::after {
+  content:"" !important;
+}
+
+/*** Replace Trump Text with Icons Styles *****/
+*.propval-before[propname="trump"]::before,
+*.propval-after[propname="trump"]::after {
+  font-size:larger; font-family:"Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", Times, Symbola, Aegyptus, Code2000, Code2001, Code2002, Musica, serif, LastResort
+}
+*.propval-before[propname="trump"]:not([propval="spades"]):not([propval="hearts"]):not([propval="diamonds"]):not([propval="clubs"])::before,
+*.propval-after[propname="trump"]:not([propval="spades"]):not([propval="hearts"]):not([propval="diamonds"]):not([propval="clubs"])::after {
+  font-size:1em; font-family: inherit;
+}
+*.propval-before[propname="trump"][propval="spades"]::before { content:attr(prefix)'\2660'; }
+*.propval-before[propname="trump"][propval="hearts"]::before { content:attr(prefix)'\2665'; }
+*.propval-before[propname="trump"][propval="diamonds"]::before { content:attr(prefix)'\2666'; }
+*.propval-before[propname="trump"][propval="clubs"]::before { content:attr(prefix)'\2663'; }
+*.propval-after[propname="trump"][propval="spades"]::after { content:'\2660'attr(suffix); }
+*.propval-after[propname="trump"][propval="hearts"]::after { content:'\2665'attr(suffix); }
+*.propval-after[propname="trump"][propval="diamonds"]::after { content:'\2666'attr(suffix); }
+*.propval-after[propname="trump"][propval="clubs"]::after { content:'\2663'attr(suffix); }
