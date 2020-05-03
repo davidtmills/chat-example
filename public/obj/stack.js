@@ -96,15 +96,20 @@ var Stack = function (application, config) {
 
   Object.defineProperty(this,"refreshUI",{
     value:function(pForceRefresh) {
-      if (_app.ready === false) { return; }
+      if (_app.ready === false) {
+        console.log("stack.refreshUI not ready", _var.key);
+        return;
+      }
       var forceRefresh = (pForceRefresh === true);
       var cards = this.cards;
       //greater than or equal to captures initial case of both being 0
       if ((forceRefresh === true) || (_var.lastUpdate >= _var.lastRefresh)) {
+        console.log("rebuilding stack", _var.key, _var.cardKeys);
         _app.game.updateCards($("*[stack='" + this.key + "'] .pcards"), cards, _var["sort"]);
         _var.lastRefresh = Date.now();
       } else {
         //if not rebuilding the whole stack, then update card selection and faces
+        console.log("just refreshing cards", _var.key, _var.cardKeys);
         cards.forEach(function(v){
           v.refreshUI(true);
         })

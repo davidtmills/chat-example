@@ -78,6 +78,7 @@ $(function () {
     var args = $el.attr("data-args") || "";
     var options, attrs, attr, attrSrc, attrDest, attrVal;
     switch (actionId) {
+
       case "select":
         attrs = args.split("|");
         attrs.forEach(function (v) {
@@ -99,89 +100,86 @@ $(function () {
           }
         });
         break;
+
       case "createRoom":
         console.log("createRoom", _app.isHost, _app.room)
-        if (_app.isHost === false) {
-          var users = {};
-          users[_app.user.key] = _app.user.state;
-          options = { hostKey:_app.user.key, users:users, title:_app.user.name + "'s Game Room" };
-          $.each(this.attributes,function(i,a){
-          	if (a.name.indexOf("room-") === 0) {
-              options[a.name] = (a.value.indexOf("#") === 0) ? $(a.value).val() : a.value;
-            }
-          });
-          if (typeof _app.room === "object") {
-            _app.io.emit("leaveRoom", _app.room.key);
+        var users = {};
+        users[_app.user.key] = _app.user.state;
+        options = { hostKey:_app.user.key, users:users, title:_app.user.name + "'s Game Room" };
+        $.each(this.attributes,function(i,a){
+        	if (a.name.indexOf("room-") === 0) {
+            options[a.name] = (a.value.indexOf("#") === 0) ? $(a.value).val() : a.value;
           }
-          _app.room = new Room(_app, options);
-          _app.io.emit("createRoom", _app.room.state);
-        } else {
-          console.log("Can't create room while host");
+        });
+        if (typeof _app.room === "object") {
+          _app.io.emit("leaveRoom");
         }
+        _app.room = new Room(_app, options);
+        _app.io.emit("createRoom", _app.room.state);
         $("#dlgGames").modal("show");
         break;
+
       case "leaveRoom":
         _app.io.emit("leaveRoom");
-        _app.room = undefined;
-        _app.game = undefined;
-        $("#dlgJoinGame").modal("show");
         break;
+
       case "joinRoom":
         attrVal = $("#joinGameCode").val().toUpperCase();
-        _app.io.emit("joinRoom", { accessCode:attrVal });
+        _app.io.emit("joinRoom", attrVal);
         break;
-      case "gameType":
+
+      case "setGameType":
         attrVal = $el.attr("game-type");
         if (_app.isHost) {
           _app.room.gameType = attrVal;
-          _app.game = _app.newGame(attrVal);
-          _app.io.emit("initGame", _app.game.data);
+          _app.game = new Game(_app, attrVal);
           $("#dlgGameStart").modal("show");
         } else {
           _app.io.emit("quickPlay", { gameType:attrVal })
         };
         break;
-      case "newHand":
-        options = {}
-        //get the specified players
-        var players = [];
-        $("#dlgGameStart [data-prop='player'][player-key][player-name]:not([player-key=''])").each(function(index){
-          players.push({ key:$(this.attr("player-key")), name:$(this.attr("player-name")) })
-        });
-        //get settings from dialog attributes
-        $.each(document.getElementById("dlgGameStart").attributes,function(i,a){
-          if (a.name.indexOf("game-") === 0) {
-            options[a.name.replace("game-","")] = (a.value.indexOf("#") === 0) ? $(a.value).val() : a.value;
-          }
-        });
-        //get the dealer key
-        options["dealerKey"] = $("#dlgGameStart [dealer-key]").attr("dealer-key") || options["dealerKey"] || "";
-/*
-        //read settings from dlgGameStart
-        $("#dlgGameStart [prop-name][prop-val]").each(function(index){
-          attr = $(this.attr("prop-name"));
-          attrVal = $(this).attr("prop-val");
-          options[$(this).attr("prop-name")] =  (attrVal.indexOf("#") === 0) ? $(attrVal).val() : attrVal;
-        })
-*/
-        _app.io.emit("initGame", options);
-        break;
 
-      case "newGame":
-        $button = $($("#dlgGames").data("relatedTarget"));
-        attrVal = $button.attr("game-type");
+      case "startGame":
         if (_app.isHost) {
-          _app.game = _app.newGame(attrVal);
-          //socket.emit("addObject", "game", attrVal, {}, _app.game.state);
-          //socket.emit("exec", "game", "", "init", []);
-        } else {
+          options = {}
+          //get the specified players
+          var players = [];
+          //get the dealer key
+          var dealerKey = $("#dlgGameStart [dealer-key]").attr("dealer-key") || options["dealerKey"] || "";
 
+          $("#dlgGameStart [data-toggle='dropdown'][player-key][player-name]:not([player-key=''])").each(function(index){
+            var $el = $(this);
+            var playerKey = $el.attr("player-key");
+            var playerName = $el.attr("player-name");
+            var isDealer = playerKey === dealerKey;
+            var obj = Object.assign({}, _app.protoPlayer, { key:playerKey, name:playerName, dealer:isDealer });
+            players.push(obj);
+            console.log('Adding player', obj);
+          });
+
+          //get settings from dialog attributes
+          $.each(document.getElementById("dlgGameStart").attributes,function(i,a){
+            if (a.name.indexOf("game-") === 0) {
+              options[a.name.replace("game-","")] = (a.value.indexOf("#") === 0) ? $(a.value).val() : a.value;
+            }
+          });
+          /*
+          //read settings from dlgGameStart
+          $("#dlgGameStart [prop-name][prop-val]").each(function(index){
+            attr = $(this.attr("prop-name"));
+            attrVal = $(this).attr("prop-val");
+            options[$(this).attr("prop-name")] =  (attrVal.indexOf("#") === 0) ? $(attrVal).val() : attrVal;
+          })
+          */
+          console.log(_app.room.gameType, players);
+          _app.game.init({ gameType:_app.room.gameType, players:players});
         }
         break;
 
       case "setCardSize":
         $("body").removeClass("card-sm card-md card-lg").addClass(args);
         break;
+
       case "sendMessage":
         var icon = $el.attr("msg-icon") || $el.attr("emoji") || "";
         var text = $target.attr("msg-text") || $target.val() || $target.text() || $el.attr("msg-text") || "";
@@ -192,6 +190,7 @@ $(function () {
         console.log("sendMessage", msg);
         _app.sendMessage(msg);
         break;
+
       case "setTrump":
         $("[propname='trump']").attr("propval", target);
         break;
@@ -268,6 +267,13 @@ $(function () {
     var actions = stack.cardActions.filter((v) => stack.check(v.filter) );
     //generate new html for menu options and replace current menu html
     _app.applyTemplate("actionlist", actions, $menu);
+  })
+
+  $('body').on('show.bs.dropdown', '.dropdown:has(*[data-template])', function(event){
+    var $button = $(event.relatedTarget) // Button that triggered the dropdown
+    var $menu = $(this).find("[data-template]");
+    var tplName = $menu.attr("data-template");
+    _app.applyTemplate(tplName, _app, $menu);
   })
 
 

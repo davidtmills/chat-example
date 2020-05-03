@@ -1,5 +1,0 @@
-/*** Client-side code ****/
-$(function () {
-
-
-});

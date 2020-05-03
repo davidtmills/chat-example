@@ -39,7 +39,13 @@ var Application = function (appKey, socket) {
 
   Object.defineProperty(this,"room",{
     get: function() { return _var.room; },
-    set: function(value) { _var.room = value; },
+    set: function(value) {
+      if ((typeof value !== "object") || (typeof _var.room !== "object") || (value.key !== _var.room.key)) {
+        _var.game = undefined;
+        _var.room = value;
+        _app.applyTemplate("gamearea", _app, "#gamearea");
+      }
+    },
     enumerable: false
   });
 
@@ -64,6 +70,18 @@ var Application = function (appKey, socket) {
   Object.defineProperty(this,"emojis",{
     get: function() { return _var.emojis; },
     //set: function(value) { _var.emojis = value; },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"protoUser",{
+    value: { key:"", name:"", email:"", photo:"", avatar:"" },
+    writable: false,
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"protoPlayer",{
+    value: { key:"", name:"", folded:false, dealer:false, active:false, high:false, opener:false, points:0, bank:0, pot:0, bet:0, bid:"", tricks:[] },
+    writable: false,
     enumerable: false
   });
 
@@ -138,18 +156,23 @@ var Application = function (appKey, socket) {
   });
 
   Object.defineProperty(this,"sendMessage",{
-    value:function(message) {
+    value:function(message, pSocket, pRoom) {
       var obj = { id:this.randomCode(8, "m"), title:"", text:"", icon:"", css:"", sender:"", ts:Date.now() };
+      var socket = (typeof pSocket === "object") ? pSocket : _app.io;
+      var roomKey = (_app.key === "SERVER") ? "" : (typeof pRoom === "string") ? pRoom : (typeof pSocket === "string") ? pSocket : ((typeof pSocket === "object") && (typeof pSocket.__roomKey === "string")) ? pSocket.__roomKey : "";
+      if (roomKey !== "") {
+        socket.to(roomKey);
+      }
       if (typeof message == "string") {
         var parts = message.split("|");
         obj.text = "" + parts[0];
         obj.icon = (parts.length > 1) ? parts[1] : "";
         obj.css = (parts.length > 2) ? parts[2] : "";
-        obj.title = _app.user.name;
+        obj.title = (_app.key === "SERVER") ? "Server" : (typeof _app.user === "object") ? _app.user.name : "Guest";
       } else {
         obj = Object.assign(obj, message);
       }
-      _app.io.emit('chatMessage', obj);
+      socket.emit('chatMessage', obj);
       return null;
     },
     enumerable: false
@@ -281,137 +304,107 @@ var Application = function (appKey, socket) {
     enumerable: false
   });
 
-  Object.defineProperty(this,"init",{
-    value:function(gameId) {
-      Handlebars.registerHelper('part', function (list, options) {
-        var opt = Object.assign({ sep:"|", index:0 }, options.hash)
-        var parts = (Array.isArray(list)) ? list : (typeof list == "string") ? list.split(opt.sep) : [];
-        return (parts.length > opt.index) ? parts[opt.index] : "";
-      })
+  if (_var.key === "SERVER") {
+    Object.defineProperty(this,"init",{
+      value:function(gameId) {},
+      enumerable: false
+    });
+  } else {
+    Object.defineProperty(this,"init",{
+      value:function(gameId) {
+        Handlebars.registerHelper('part', function (list, options) {
+          var opt = Object.assign({ sep:"|", index:0 }, options.hash)
+          var parts = (Array.isArray(list)) ? list : (typeof list == "string") ? list.split(opt.sep) : [];
+          return (parts.length > opt.index) ? parts[opt.index] : "";
+        })
 
-      Handlebars.registerHelper('ordinal', function (number, options) {
-        var opt = Object.assign({ isIndex:true, html:true }, options.hash)
-        var num = (opt.isIndex) ? (number + 1) : number;
-        var ord = "th";
-        switch (num % 10) {
-          case 1: ord = (num == 11) ? "th" : "st"; break;
-          case 2: ord = (num == 12) ? "th" : "nd"; break;
-          case 3: ord = (num == 13) ? "th" : "rd"; break;
+        Handlebars.registerHelper('ordinal', function (number, options) {
+          var opt = Object.assign({ isIndex:true, html:true }, options.hash)
+          var num = (opt.isIndex) ? (number + 1) : number;
+          var ord = "th";
+          switch (num % 10) {
+            case 1: ord = (num == 11) ? "th" : "st"; break;
+            case 2: ord = (num == 12) ? "th" : "nd"; break;
+            case 3: ord = (num == 13) ? "th" : "rd"; break;
+          }
+          return (opt.html) ? new Handlebars.SafeString("" + num + "<sup>" + ord + "</sup>") : "" + num + ord;
+        })
+
+        //*** Initialize user data
+        if (_var.user !== "object") {
+          _var.user = new User (_app, { name:this.randomName() });
         }
-        return (opt.html) ? new Handlebars.SafeString("" + num + "<sup>" + ord + "</sup>") : "" + num + ord;
-      })
 
-      //*** Initialize user data
-      if (_var.user !== "object") {
-        _var.user = new User (_app, { name:this.randomName() });
-      }
+        this.applyTemplate("gamearea", this, "#gamearea");
 
-      this.applyTemplate("gamearea", this, "#gamearea");
-
-      if (typeof _var.room !== "object") {
-        $("#dlgUserSettings").modal("show");
-      }
-
-      _app.io.emit("initUser", _var.user.state);
-
-      /*** Display chatMessage recieved from server ****/
-      _app.io.on('chatMessage', function(msg){
-        _app.post(msg);
-      });
-
-      /*** Synchronizes states of Application, User, Room, Game, Card, Stack and Player objects ****/
-      socket.on('state', function(pClass, pKey, pData){
-        var obj = _app.getObject(pClass, pKey);
-        //update state of local object if one exists
-        if (typeof obj === "object") {
-          obj.state = pData;
-          console.log("io.on.state",pClass,pKey,pData);
+        if (typeof _var.room !== "object") {
+          $("#dlgUserSettings").modal("show");
         }
-      });
+
+        _app.io.emit("initUser", _var.user.state);
+
+        /*** Display chatMessage recieved from server ****/
+        _app.io.on('chatMessage', function(pMessage){
+          _app.post(pMessage);
+        });
+
+        _app.io.on('initGame', function(pData){
+          if ((typeof _app.game !== "object") || (_app.game.gameType !== pData.gameType)) {
+            _app.room.gameType = pData.gameType;
+            _app.game = new Game(_app, pData.gameType);
+          }
+          _app.game.init(pData);
+          _app.post({title:"New Game", text:"Starting new game."});
+        });
+
+        _app.io.on('initRoom', function(pConfig){
+          _app.room = (typeof pConfig === "object") ? new Room(_app, pConfig) : undefined;
+          console.log("initRoom", _app.room);
+        });
+
+        _app.io.on('showDialog', function(pId){
+          var sel = (typeof pId !== "string") ? "" : (pId.substr(0,1) != "#") ? "#" + pId : pId;
+          $(sel).modal('show');
+        });
+
+        /*** Synchronizes states of Application, User, Room, Game, Card, Stack and Player objects ****/
+        socket.on('state', function(pClass, pKey, pData){
+          var obj = _app.getObject(pClass, pKey);
+          //update state of local object if one exists
+          if (typeof obj === "object") {
+            obj.state = pData;
+            console.log("io.on.state", pClass, pKey, pData);
+          } else {
+            console.log("unsupported object", pClass, pKey, pData)
+          }
+        });
 
 
-      /*** Adds a User to the current/specified Room ****/
-      socket.on('addUser', function(pData){
-        //accepts either userData or { user:(Object), room(key or Object)}
-        var room = _app.room;
-        var userData = (typeof pData !== "object") ? {} :(typeof pData.user === "object") ? pData.user : pData;
-        var roomKey = (typeof pData === "string") ? _var.key : (typeof pData !== "object") ? _var.key : (typeof pData.room === "string") ? pData.room : (typeof pData.room === "object") ? pData.room.key : _var.key;
-        if ((typeof room === "object") && (room.key === roomKey) && (typeof userData.key === "string") && (userData.key !== "")) {
-          //use room property to just update the LOCAL copy
-          room.addUser(userData, true)
-        }
-      })
+        /*** Adds a User to the current/specified Room ****/
+        socket.on('addUser', function(pConfig){
+          var room = _app.room;
+          var userData = pConfig;
+          if ((typeof room === "object") && (typeof userData.key === "string") && (userData.key !== "")) {
+            //use room property to just update the LOCAL copy
+            room.addUser(userData, true)
+          }
+        })
 
-      /*** Removes a User from the current/specified Room ****/
-      socket.on('removeUser', function(pData){
-        //accepts either userKey or { user:(key or Object), room(key or Object)}
-        var room = _app.room;
-        var userKey = (typeof pData === "string") ? pData : (typeof pData !== "object") ? "" : (typeof pData.user === "string") ? pData.user : (typeof pData.user === "object") ? pData.user.key : "";
-        var roomKey = (typeof pData === "string") ? _var.key : (typeof pData !== "object") ? _var.key : (typeof pData.room === "string") ? pData.room : (typeof pData.room === "object") ? pData.room.key : _var.key;
-        if ((typeof room === "object") && (room.key === roomKey) && (typeof userData.key === "string") && (userData.key !== "")) {
-          //use room property to just update the LOCAL copy
-          room.removeUser(userKey, true)
-        }
-      });
+        /*** Removes a User from the current/specified Room ****/
+        socket.on('removeUser', function(userKey){
+          //accepts either userKey or { user:(key or Object), room(key or Object)}
+          var room = _app.room;
+          if ((typeof room === "object") && (typeof pUserKey === "string") && (pUserKey !== "")) {
+            //use room property to just update the LOCAL copy
+            room.removeUser(pUserKey, true)
+          }
+        });
 
-      /*** Creates a new Game object and adds it to _app.game ****/
-      socket.on('newGame', function(gameType, gameState){
-      });
+      },
+      enumerable: false
+    });
 
-      /*** Deals a new hand from _app.game ****/
-      socket.on('newHand', function(gameType, gameState){
-      });
-
-    /*
-      _app.io.on('exec', function(pClass, pKey, pMethod, pArgs){
-        //adds or updates specified object property on specified object
-        var target = _app.getObject(pClass, pKey);
-        var args = (Array.isArray(pArgs)) ? pArgs : [pArgs];
-        if ((typeof target === "object") && (typeof target[pMethod] === "function")) {
-          target[pMethod].apply(target, args);
-        } else {
-          console.warn("io.extend Invalid Function:" + (typeof target), pKey, pMethod)
-        }
-      });
-
-      _app.io.on('set', function(pClass, pKey, pProperty, pValue){
-        //adds or updates specified object property on specified object
-        var target = _app.getObject(pClass, pKey);
-        if ((typeof target === "object") && (typeof target[pProperty] !== "undefined")) {
-          target[pProperty] = pValue;
-          console.log("io.set:", pProperty, pValue, target);
-        } else {
-          console.warn("io.set " + pProperty + " property not defined", target);
-        }
-      });
-
-      _app.io.on('extend', function(pClass, pKey, pData){
-        //adds or updates specified object property on specified object
-        var target = _app.getObject(pClass, pKey);
-        if ((typeof target === "object") && (typeof pData === "object")) {
-          target = this.updateProperty(target, pData);
-        } else {
-          console.warn("io.extend Invalid Type:" + (typeof target), pKey)
-        }
-      });
-
-      _app.io.on('update', function(pClass, pKey, pProperty, pData){
-        //adds or updates specified object property on specified object
-        var target = _app.getObject(pClass, pKey);
-        //change target to the specified property or reset to undefined
-        target = (typeof target === "object") ? target[pProperty] : undefined;
-        if (typeof target !== "undefined") {
-          target = this.updateProperty(target, pData);
-        } else {
-          console.warn("io.extend Missing Property:" + pProperty, pKey)
-        }
-      });
-
-    */
-
-    },
-    enumerable: false
-  });
+  }
 
   _var.emojis = [
     { alt:"grinning face", hex:"1f600", html:"&#x1f600;", char:"\u1f600" },
@@ -453,11 +446,10 @@ var Application = function (appKey, socket) {
       title:"Euchre",
       minPlayers:4,
       maxPlayers:4,
+      trumps:["spades","diamonds","clubs","hearts"],
       decks:{ euchre:1 },
       display:[ ["*[area='p1']", "hand", "owner" ], ["*[area='t1']", "shared", "everyone" ] ],
       chat:["Pass|\u{1f44b}","Pick it up!|\u{1f44d}","I'm going alone!|\u{1f60e}","Spades|\u2660|club","Diamonds|\u2666|diamond","Clubs|\u2663|club","Hearts|\u2665|heart"],
-      bidPrompt:"",
-      trumps:["spades","diamonds","clubs","hearts"],
       gameMenu:[
         {key:"scores", label:"Scores", fn:"showDialog", obj:"game", filter:{ }, options:{ dialog:"dlgScores" }},
         {key:"rules", label:"Rules", fn:"showDialog", obj:"game", filter:{ }, options:{ dialog:"dlgRules" }},

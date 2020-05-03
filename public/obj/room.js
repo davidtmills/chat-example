@@ -4,11 +4,9 @@ var Room = function (application, config) {
 
   //store a private reference to the application
   var _app = application;
-  var _isServer = (typeof module !== 'undefined' && typeof module.exports !== 'undefined');
 
   //define private config variable to hold property values
   var _var = Object.assign({ key:_app.randomCode(6), title:"", hostKey:"", users:{}, blockedUsers:{}, gameType:"", accessCode:_app.randomCode(6), isOpen:true, isPrivate:true, minUsers:0, maxUsers:10000, lastUpdate:Date.now(), lastRefresh:0 }, config);
-  var _isServer = (config["isServer"] === true);
 
   /****** STATE AN UI MANAGEMENT ******/
   Object.defineProperty(this,"toJSON",{
@@ -242,11 +240,11 @@ if (_app.key === "SERVER") {
       //add to the room.users object
       _var.users[userKey] = user.state;
       //update the room setting for the user in question
-      user.socket.emit("state", "room", _var.key, this.toJSON());
+      user.socket.emit("initRoom", this.toJSON());
       //send command to have all room members add user to thier room.users
       _app.io.to(_var.key).emit("addUser", { user:user.state, room:_var.key});
       //announce arrival
-      _app.io.to(_var.key).emit("chatMessage", { title:_var.key, text:"has joined the gameroom.\n" + _var.title});
+      _app.sendMessage({ title:user.name, text:"has joined the room." }, _var.key);
     },
     enumerable: false
   });
@@ -258,7 +256,7 @@ if (_app.key === "SERVER") {
         _var.users[userData.key] = Object.assign({}, _var.users[userData.key], userData, { lastUpdate:Date.now() });
         _var.lastUpdate = Date.now();
         if (pLocalOnly !== true) {
-          _app.io.emit("joinRoom", { room:_var.key, user:userData.key });
+          _app.io.emit("joinRoom", _var.accessCode, userData.key);
         }
       }
     },
@@ -275,16 +273,29 @@ if (_app.key === "SERVER") {
       if (typeof user === "object") {
         //delete user from room's users object
         delete _var.users[userKey];
+        var arrUsers = Object.keys(_var.users);
         if (pLocalOnly !== true) {
-          //send remove user to all users in room
-          _app.io.to(_var.key).emit("removeUser", { user:userKey, room:_var.key });
-          //announce departure
-          _app.io.to(_var.key).emit("chatMessage", { title:_var.key, text:"has left the gameroom.\n" + _var.title});
           //unsubscribe the user from the room
           user.socket.leave(_var.key);
           user.socket.__roomKey = "";
+          //update the room setting for the user in question
+          user.socket.emit("initRoom", undefined);
+          //notify users and assign new host if needed
+          if (arrUsers.length > 0) {
+            if (user.key === _var.hostKey) {
+              //assign to last user so we don't keep updating when destroying the room
+              this.hostKey = arrUsers[arrUsers.length - 1];
+              _app.sendMessage({ title:_app.users[_var.hostKey].name, text:"is the new host." }, _var.key);
+            }
+            //send remove user to all users in room
+            _app.io.to(_var.key).emit("removeUser", userKey);
+            //announce departure
+            _app.sendMessage({ title:user.name, text:"has left the room." }, _var.key);
+          } else {
+            //destroy the room when no more users
+            this.destroy();
+          }
           console.log(user.key, user.socket.__roomKey, user.socket.rooms);
-
         }
       }
     },
@@ -295,12 +306,10 @@ if (_app.key === "SERVER") {
     value:function(pUserData, pLocalOnly) {
       var userData = (typeof pUserData === "object") ? pUserData : { key:pUserData }
       if (typeof userData.key === "string" && userData.key !== "") {
-        if (typeof userData.key === "string" && userData.key !== "") {
-          delete _var.users[userData.key];
-          _var.lastUpdate = Date.now();
-          if (pLocalOnly !== true) {
-            _app.io.emit("leaveRoom", { room:_var.key, user:userData.key });
-          }
+        delete _var.users[userData.key];
+        _var.lastUpdate = Date.now();
+        if (pLocalOnly !== true) {
+          _app.io.emit("leaveRoom", _var.key, userData.key);
         }
       }
     },
@@ -371,6 +380,8 @@ if (_app.key === "SERVER") {
       var room = this;
       //Boot users from the room
       Object.keys(_var.users).forEach((v) => { room.removeUser(v.key) });
+      //Anounce destruction
+      _app.sendMessage({ title:"destroy (room)", text:"destroying empty room " + room.key });
       //remove from server rooms collection
       delete _app.rooms[room.key];
     },

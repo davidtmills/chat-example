@@ -73,6 +73,55 @@
       </div>
     {{/with}}</script>
 
+<!-- ###### GAME MENU TEMPLATE ###### -->
+    <script id="gamemenu-template" type="text/x-handlebars-template">{{#with this.ctx}}
+      {{#if game}}
+        {{#if isDealer}}
+          {{#if game.trumps}}
+          <li class="dropdown-submenu">
+            <button class="dropdown-item" type="button">Bid</button>
+            <ul class="dropdown-menu">
+              <li class="dropdown-header">Trump</li>
+              {{#each game.trumps}}
+                <li><button class="dropdown-item text-capitalize btn-sm" data-action="setTrump" data-target="{{this}}">{{this}}</button></li>
+              {{/each}}
+              <li class="dropdown-divider"></li>
+              <li><button class="dropdown-item" type="button" data-action="pass">Pass</button></li>
+            </ul>
+          </li>
+          {{/if}}
+          <li class="dropdown-submenu if-dealer">
+            <button class="dropdown-item" type="button">Next Player</button>
+            <ul class="dropdown-menu">
+              <li class="dropdown-header">Player</li>
+              {{#each game.players}}
+                <li><button class="dropdown-item text-capitalize btn-sm" data-action="activePlayer" player-key="{{key}}">{{name}}</button></li>
+              {{/each}}
+            </ul>
+          </li>
+          <li class="dropdown-divider"></li>
+        {{/if}}
+
+        {{#if isHost}}
+          <li><button class="dropdown-item" type="button" data-toggle="modal" data-target="#dlgGameStart">New Deal</button></li>
+          <li><button class="dropdown-item" type="button" data-toggle="modal" data-target="#dlgGames">Change Game</button></li>
+          <li class="dropdown-divider"></li>
+        {{/if}}
+
+        <li><button class="dropdown-item" type="button">Scores</button></li>
+
+        {{#if game.rules}}
+          <li><button class="dropdown-item" type="button">Rules</button></li>
+        {{/if}}
+
+        <li class="dropdown-divider"></li>
+        <li><button class="dropdown-item" type="button" data-action="leaveRoom">Leave Game</button></li>
+
+      {{else}}
+        <li><button class="dropdown-item" type="button" data-toggle="modal" data-target="#dlgJoinGame">{{#if isHost}}Start Game{{else}}Join Game{{/if}}</button></li>
+      {{/if}}
+    {{/with}}</script>
+
 <!-- ###### GAME AREA TEMPLATE ###### -->
     <script id="gamearea-template" type="text/x-handlebars-template">{{#with this.ctx}}
       <div id="header" class="navbar-light bg-light">
@@ -80,37 +129,7 @@
           <button class="btn dropdown-toggle" type="button" id="gameMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
             <span propname="title" propval="{{game.title}}">{{game.title}}{{#unless game.title}}Game Menu{{/unless}}</span>
           </button>
-          <ul class="dropdown-menu" aria-labelledby="gameMenuDropdown">
-              {{#if game.trumps}}
-                <li class="dropdown-submenu">
-                  <button class="dropdown-item" type="button">Bid</button>
-                  <ul class="dropdown-menu">
-                    <li class="dropdown-header">Trump</li>
-                    {{#each game.trumps}}
-                      <li><button class="dropdown-item text-capitalize btn-sm" data-action="setTrump" data-target="{{this}}">{{this}}</button></li>
-                    {{/each}}
-                    <li class="dropdown-divider"></li>
-                    <li><button class="dropdown-item" type="button" data-action="pass">Pass</button></li>
-                  </ul>
-                </li>
-              {{/if}}
-                <li class="dropdown-submenu if-dealer">
-                  <button class="dropdown-item" type="button">Next Player</button>
-                  <ul class="dropdown-menu">
-                    <li class="dropdown-header">Player</li>
-                    {{#each game.players}}
-                      <li><button class="dropdown-item text-capitalize btn-sm" data-action="activePlayer" player-key="{{key}}">{{name}}</button></li>
-                    {{/each}}
-                  </ul>
-                </li>
-                <li><button class="dropdown-item" type="button" data-toggle="modal" data-target="#dlgGameStart">New Deal</button></li>
-                <li class="if-dealer"><button class="dropdown-item" type="button" data-toggle="modal" data-target="#dlgGames">Change Game</button></li>
-              <li class="dropdown-divider"></li>
-              <li><button class="dropdown-item" type="button">Scores</button></li>
-              <li><button class="dropdown-item" type="button">Rules</button></li>
-              <li class="dropdown-divider"></li>
-            <li><button class="dropdown-item" type="button" data-toggle="modal" data-target="#dlgJoinGame">{{#if game}}Leave Game{{else}}Join Game{{/if}}</button></li>
-          </ul>
+          <ul data-template="gamemenu" class="dropdown-menu" aria-labelledby="gameMenuDropdown"></ul>
         </div>
         {{#if game.trumps}}
         <div class="mx-0 px-0 text-capitalize align-self-center flex-shrink-0 text-muted propval-before" propname="trump" propval=""></div>
@@ -168,9 +187,11 @@
         <div class="modal-content">
           <div class="modal-header py-2 bg-light">
             <h6 class="modal-title" id="dlgJoinGameTitle">Play Game</h6>
+            {{#if room.gameType}}
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
+            {{/if}}
           </div>
           <div class="modal-body py-2 px-3">
               <div class="form-group">
@@ -178,7 +199,7 @@
                 <div class="input-group">
                   <input type="text" class="form-control text-uppercase" id="joinGameCode" aria-describedby="joinGameCodeHelp" placeholder="6-digit Code" maxlength="6" value="">
                   <div class="input-group-append">
-                    <button id="joinRoomButton" type="button" class="btn btn-primary" data-action="joinRoom" access-code="">Join</button>
+                    <button id="joinRoomButton" type="button" class="btn btn-primary" data-action="joinRoom" access-code="" data-dismiss="modal">Join</button>
                   </div>
                 </div>
                 <small id="joinGameCodeHelp" class="form-text text-muted">If you were given a code enter it here</small>
@@ -206,9 +227,11 @@
         <div class="modal-content">
           <div class="modal-header py-2 bg-light">
             <h6 class="modal-title" id="dlgUserSettingsTitle">Player Settings</h6>
+            {{#if room.gameType}}
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
+            {{/if}}
           </div>
           <div class="modal-body py-2 px-3">
             <style>
@@ -356,14 +379,16 @@
         <div class="modal-content">
           <div class="modal-header py-2 bg-light">
             <h6 class="modal-title" id="dlgGamesTitle">Select a Game &hellip;</h6>
+            {{#if room.gameType}}
             <button type="button" class="close" data-dismiss="modal" aria-label="Close">
               <span aria-hidden="true">&times;</span>
             </button>
+            {{/if}}
           </div>
           <div class="modal-body p-1">
             <div class="list-group">
               {{#each gameConfigs}}
-                <button type="button" class="list-group-item list-group-item-action" data-action="gameType" game-type="{{@key}}" data-dismiss="modal">{{title}}</button>
+                <button type="button" class="list-group-item list-group-item-action" data-action="setGameType" game-type="{{@key}}" data-dismiss="modal">{{title}}</button>
               {{/each}}
             </div>
           </div>
@@ -392,11 +417,11 @@
   <body class="role-host role-dealer card-md">
     <div id="gamearea"></div>
     <div id="toasts" aria-live="polite" aria-atomic="true" ></div>
-    <div class="modal" id="dlgJoinGame" tabindex="-1" role="dialog" aria-labelledby="dlgJoinGameTitle" aria-hidden="true"></div>
-    <div class="modal" id="dlgGameStart" tabindex="-1" role="dialog" aria-labelledby="dlgGameStartTitle" aria-hidden="true"></div>
-    <div class="modal" id="dlgGames" tabindex="-1" role="dialog" aria-labelledby="dlgGamesTitle" aria-hidden="true"></div>
-    <div class="modal" id="dlgChat" tabindex="-1" role="dialog" aria-labelledby="dlgChatTitle" aria-hidden="true"></div>
-    <div class="modal" id="dlgUserSettings" tabindex="-1" role="dialog" aria-labelledby="dlgUserSettingsTitle" aria-hidden="true"></div>
+    <div class="modal" id="dlgJoinGame" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="dlgJoinGameTitle" aria-hidden="true"></div>
+    <div class="modal" id="dlgGameStart" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="dlgGameStartTitle" aria-hidden="true"></div>
+    <div class="modal" id="dlgGames" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="dlgGamesTitle" aria-hidden="true"></div>
+    <div class="modal" id="dlgChat" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="dlgChatTitle" aria-hidden="true"></div>
+    <div class="modal" id="dlgUserSettings" data-backdrop="static" data-keyboard="false" tabindex="-1" role="dialog" aria-labelledby="dlgUserSettingsTitle" aria-hidden="true"></div>
     <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
     <script src="/js/app.js"></script>
      <div id="image-cache" style="position:absolute; top:-1px; left:-1px; height:1px !important;width:1px !important;overflow:hidden !important;">

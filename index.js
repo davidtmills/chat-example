@@ -42,10 +42,12 @@ for (var k in _app.gameConfigs) {
 }
 
 _app.endUserSession = function(socket) {
-  var userKey = (typeof socket.__userKey === "string") ? socket.__userKey : "";
-  var roomKey = (typeof socket.__roomKey === "string") ? socket.__roomKey : "";
-  if (roomKey != '') { _app.leaveRoom(socket, _app.users[roomKey]); }
-  if (userKey != '') { delete _app.users[userKey]; }
+  var user = _app.getUser(socket.__userKey);
+  var room = _app.getRoom(socket.__roomKey);
+  if ((typeof room === "object") && (typeof user === "object")) {
+    room.removeUser(user);
+  }
+  delete _app.users[socket.__userKey];
 }
 
 _app.startUserSession = function(socket, pUserData) {
@@ -78,34 +80,9 @@ _app.startUserSession = function(socket, pUserData) {
   return user;
 }
 
-_app.sendMessage = function (socket, title, text) {
-  socket.emit("chatMessage", { title:title, text:text });
-}
-
-_app.joinRoom = function (socket, room) {
-  var user = _app.users[socket.__userKey];
-  if (typeof room === "object") {
-    room.addUser(user, socket);
-  }
-  return;
-}
-
-_app.leaveRoom = function (socket, room) {
-  room.removeUser(socket.__userKey, room);
-}
-
 /****** Socket Event Handlers *******/
 io.on('connection', socket => {
   console.log('Connect', socket.id);
-  //add to users
-  /* join a game */
-  //socket.join(gameKey);
-  /* join a room */
-  //socket.join(roomKey);
-  /* socket.emit does Welcome message to new chatter */
-  //socket.emit('chatMessage', { title:"Chatbot", text:"Welcome" });
-  /* socket.braodcast.emit from Admin to new user joined. */
-  //socket.broadcast.emit('chatMessage', { title:"Chatbot", text:"New user " + socket.id });
 
   if (typeof socket.__userKey !== "string") {
     socket.__userKey = "";
@@ -147,119 +124,97 @@ io.on('connection', socket => {
     socket.emit("state", pClass, pKey, pData);
   });
 
-  socket.on('addObject', function(pClass, pKey, pConfig, pState){
-    var user = _app.getUser(this.__userKey);
-    var room = _app.getRoom(this.__roomKey);
-    if ((typeof user === "object") && (room === "object")) {
-      this.to(room.key).emit("addObject", pClass, pKey, pConfig, pState);
-    }
-  });
-
-
-  socket.on('exec', function(pClass, pKey, pMethod, pArgs){
-    var user = _app.getUser(this.__userKey);
-    var room = _app.getRoom(this.__roomKey);
-    if ((typeof user === "object") && (room === "object")) {
-      socket.to(room.key).emit("exec", pClass, pKey, pMethod, pArgs);
-    }
-  });
-
-  socket.on('set', function(pClass, pKey, pProperty, pValue){
-    var user = _app.getUser(this.__userKey);
-    var room = _app.getRoom(this.__roomKey);
-    if ((typeof user === "object") && (room === "object")) {
-      socket.to(room.key).emit("set", pClass, pKey, pProperty, pValue);
-    }
-  });
-
-  socket.on('extend', function(pClass, pKey, pData){
-    var user = _app.getUser(this.__userKey);
-    var room = _app.getRoom(this.__roomKey);
-    if ((typeof user === "object") && (room === "object")) {
-      socket.to(room.key).emit("extend", pClass, pKey, pData);
-    }
-  });
-
-  socket.on('update', function(pClass, pKey, pProperty, pData){
-    var user = _app.getUser(this.__userKey);
-    var room = _app.getRoom(this.__roomKey);
-    if ((typeof user === "object") && (room === "object")) {
-      socket.to(room.key).emit("update", pClass, pKey, pProperty, pData);
-    }
-  });
-
 //*** ROOM Events ****/
-  socket.on('createRoom', function(pData){
+  socket.on('createRoom', function(pConfig){
     var user = _app.getUser(this.__userKey);
     var room = _app.getRoom(this.__roomKey);
-    if (typeof user === "object" && typeof pData === "object") {
+    var users = (typeof pConfig.users !== "object") ? [] : (!Array.isArray(pConfig.users)) ? Object.keys(pConfig.users) : pConfig.users.map((v) => (typeof v === "object") ? v.key : v);;
+
+    if (typeof user === "object") {
       //remove from previous room if in one
       if (room === "object") {
         room.removeUser(user.key);
       }
-      var roomData = Object.assign({ title:user.name + "'s Room" }, pData);
+
+      //create the room with user as host
+      var roomData = Object.assign({ title:user.name + "'s Room" }, pConfig, { hostKey:user.key, users:{} });
       room = new Room(_app, roomData);
       _app.rooms[room.key] = room;
-      room.addUser(user.key);
+
+      //Anounce creation
+      _app.sendMessage({ title:"io.createRoom (index)", text: "Room created.\n" + room.title });
+
+      //add the users
+      users.forEach(function (v) {
+        room.addUser(v);
+      });
+
+      //make sure creator/host is in room
+      if (typeof room.users[user.key] !== "object") {
+        room.addUser(user.key);
+      }
+
       console.log(this.__userKey, this.__roomKey, "room created", room.key, room.accessCode, room.title);
       console.log(this.rooms);
     }
   });
 
-  socket.on('destroyRoom', function(pData){
-    //pData may be roomKey or { room:(key or Object), user:(key or Object) }
-    var roomKey = (typeof pData === "string") ? pData : (typeof pData === "object") ? pData.key : this.__roomKey;
+  socket.on('destroyRoom', function(pRoomKey){
+    var roomKey = (typeof pRoomKey === "string") ? pRoomKey : this.__roomKey;
     var room = _app.getRoom(roomKey);
     var user = _app.getUser(this.__userKey);
     //todo: add check to make sure acting user is the host of the room or users is empty
-    if (typeof room === "object") {
+    if ((typeof room === "object") && (typeof user === "object") && (room.hostKey === user.key)) {
       room.destroy();
     }
   });
 
-  socket.on('joinRoom', function(pData){
-    //pData may be roomKey or { room:(key or Object), user:(key or Object) }
-    var userKey = (typeof pData === "string") ? this.__userKey : (typeof pData.user === "object") ? pData.user.key : (typeof pData.user === "string") ? pData.user : "";
-    var user = _app.getUser(this.__userKey);
-    var room = _app.getRoom(pData);
+  socket.on('joinRoom', function(pAccessCode, pUserKey){
+    var userKey = (typeof pUserKey === "string") ? pUserKey : this.__userKey;
+    var accessCode = (typeof pAccessCode === "string") ? pAccessCode : "";
+    var user = _app.getUser(userKey);
+    var room = _app.getRoom({ accessCode:accessCode });
     if ((typeof user === "object") && (typeof room === "object")) {
-      room.addUser(user);
-      console.log(this.__userKey + ' joined ' + this.__roomKey + ' with code ' + room['accessCode']);
+      room.addUser(userKey);
+      console.log(userKey + ' joined ' + room.key + ' with code ' + accessCode);
     } else if (typeof room === "undefined") {
-      this.emit("chatMessage", { title:"Room Not Found", text:"No room is currently available with that code." });
+      this.emit("showDialog", "#dlgJoinGame")
+      _app.sendMessage({ title:"io.joinRoom (index)", text:"Expired or invalid Game Code" }, this);
+    } else {
+      _app.sendMessage({ title:"io.joinRoom (index)", text:"You are not logged in." }, this);
     }
   });
 
-  socket.on('leaveRoom', function(pData){
-    //pData may be roomKey or { room:(key or Object), user:(key or Object) }
-    var userKey = (typeof pData === "string") ? this.__userKey : (typeof pData.user === "object") ? pData.user.key : (typeof pData.user === "string") ? pData.user : "";
-    var roomKey = (typeof pData === "string") ? pData : (typeof pData.room === "object") ? pData.room.key : (typeof pData.room === "string") ? pData.room : "";
-    var user = _app.getUser(userKey);
+  socket.on('leaveRoom', function(pRoomKey, pUserKey){
+    var roomKey = (typeof pRoomKey === "string") ? pRoomKey : this.__roomKey;
     var room = _app.getRoom(roomKey);
+    //host may boot anyone but other users can only remove themselves
+    var userKey = ((typeof pUserKey === "string") && (typeof room === "object") && (room.hostKey === this.__userKey)) ? pUserKey : this.__userKey;
+    var user = _app.getUser(userKey);
     if ((typeof user === "object") && (typeof room === "object")) {
       room.removeUser(user);
     }
   });
 
-  socket.on('blockUser', function(pData){
-    //pData may be userKey or { room:(key or Object), user:(key or Object) }
-    var userKey = (typeof pData === "string") ? pData : (typeof pData.user === "object") ? pData.user.key : (typeof pData.user === "string") ? pData.user : "";
-    var roomKey = (typeof pData === "string") ? this.__roomKey : (typeof pData.room === "object") ? pData.room.key : (typeof pData.room === "string") ? pData.room : "";
-    var user = _app.getUser(userKey);
+  socket.on('blockUser', function(pUserKey, pRoomKey){
+    var blockKey = pUserKey;
+    var roomKey = (typeof pRoomKey === "string") ? pRoomKey : this.__roomKey;
     var room = _app.getRoom(roomKey);
-    if ((typeof user === "object") && (typeof room === "object")) {
-      room.blockUser(user);
+    var user = _app.getUser(this.__userKey);
+    var room = _app.getRoom(roomKey);
+    if ((typeof user === "object") && (typeof room === "object") && (user.key === room.hostKey)) {
+      room.blockUser(blockKey);
     }
   });
 
-  socket.on('unblockUser', function(pData){
-    //pData may be userKey or { room:(key or Object), user:(key or Object) }
-    var userKey = (typeof pData === "string") ? pData : (typeof pData.user === "object") ? pData.user.key : (typeof pData.user === "string") ? pData.user : "";
-    var roomKey = (typeof pData === "string") ? this.__roomKey : (typeof pData.room === "object") ? pData.room.key : (typeof pData.room === "string") ? pData.room : "";
-    var user = _app.getUser(userKey);
+  socket.on('unblockUser', function(pUserKey, pRoomKey){
+    var unblockKey = pUserKey;
+    var roomKey = (typeof pRoomKey === "string") ? pRoomKey : this.__roomKey;
     var room = _app.getRoom(roomKey);
-    if ((typeof user === "object") && (typeof room === "object")) {
-      room.unblockUser(user);
+    var user = _app.getUser(this.__userKey);
+    var room = _app.getRoom(roomKey);
+    if ((typeof user === "object") && (typeof room === "object") && (user.key === room.hostKey)) {
+      room.unblockUser(unblockKey);
     }
   });
 
@@ -267,18 +222,26 @@ io.on('connection', socket => {
     var user = _app.getUser(this.__userKey);
     var room = _app.getRoom(this.__roomKey);
     if ((typeof user === "object") && (typeof room === "object")) {
-      io.to(room.key).emit('chatMessage', pMessage);
+      _app.sendMessage(pMessage, room.key);
     } else if (typeof user === "object") {
-      this.emit('chatMessage', Object.assign(pMessage, { title:"LOCAL" }));
+      _app.sendMessage(Object.assign(pMessage, { title:"io.chatMessage (index)", text:"Missing Room" }), this);
     }
   });
 
 
 //******** GAME Events ************/
+  socket.on('initGame', function(pData){
+    var user = _app.getUser(this.__userKey);
+    var room = _app.getRoom(this.__roomKey);
+    console.log("Broadcasting Initialize Game Event ...");
+    _app.io.to(room.key).emit("initGame", pData);
+  });
+
   socket.on('quickPlay', function(pGameType){
-    var user = _app.getUser(this);
-    var gameType = (typeof pGameType === "string") ? pGameType : (typeof pGameType !== "object") ? "" : (typeof pGameType.gameType === "string") ? pGameType.gameType : (typeof pGameType.configKey === "string") ? pGameType.configKey : "";
-    if (typeof user === "object") {
+    var user = _app.getUser(this.__userKey);
+    var room = _app.getRoom(this.__roomKey);
+    var gameType = (typeof pGameType === "string") ? pGameType : ((typeof room === "object") && typeof room.gameType === "string") ? room.gameType : "";
+    if ((typeof user === "object") && (typeof _app.waitlist[gameType] === "object")) {
       for (var k in _app.waitlist) {
         _app.waitlist[k].users.forEach((v) => { if (v === user.key) { v = "" } });
       }
@@ -286,8 +249,9 @@ io.on('connection', socket => {
     }
   });
 
-  socket.on('cancelQuickPlay', function(pGameType){
-    var user = _app.getUser(this);
+  socket.on('cancelQuickPlay', function(){
+    var user = _app.getUser(this.__userKey);
+    var room = _app.getRoom(this.__roomKey);
     if (typeof user === "object") {
       for (var k in _app.waitlist) {
         _app.waitlist[k].users.forEach((v) => { if (v === user.key) { v = "" } });
@@ -295,11 +259,10 @@ io.on('connection', socket => {
     }
   });
 
-  socket.on('inviteGuests', function(pGameType, pNumGuests){
+  socket.on('inviteGuests', function(pNumGuests){
     var user = _app.getUser(this.__userKey);
     var room = _app.getRoom(this.__roomKey);
-    var gameType = (typeof pGameType === "string") ? pGameType : (typeof pGameType !== "object") ? "" : (typeof pGameType.gameType === "string") ? pGameType.gameType : (typeof pGameType.configKey === "string") ? pGameType.configKey : "";
-    if ((typeof user === "object") && (typeof room === "object") && (user.key === room.hostKey)) {
+    if ((typeof user === "object") && (typeof room === "object") && (user.key === room.hostKey) && (typeof _app.waitlist[room.gameType] === "object")) {
       //change any existing request for this game to empty strings
       //the processor will remove, we don't want to have a race condition
       for (var k in _app.waitlist) {
@@ -307,7 +270,7 @@ io.on('connection', socket => {
       }
       //add an entry for each requested seat
       for (var x = 0; x < pNumGuests; x++) {
-        _app.waitlist[gameType].games.push(room.key);
+        _app.waitlist[room.gameType].games.push(room.key);
       }
     }
   });
@@ -325,19 +288,6 @@ io.on('connection', socket => {
   });
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
   //*** USER Events ****/
   socket.on('initUser', function(pUserData){
     console.log('io.initUser', this.id, pUserData["key"], pUserData["name"]);
@@ -350,7 +300,7 @@ io.on('connection', socket => {
   });
 
   socket.on('logout', function(pOptions){
-    console.log('io.logout', this.id, pOptions["key"]);
+    console.log('io.logout', this.id, pOptions);
     endUserSession(this);
   });
 
@@ -409,7 +359,7 @@ function processWaitlist(){
           //if not a valid user then put game back in queue
           unhandled.push(gameKey);
         } else {
-          room.addUser(user);
+          room.addUser(user.key);
         }
       }
     }
@@ -425,9 +375,9 @@ function processWaitlist(){
       }
       var user = _app.users[playerKey];
       //if player found, create a new room, add the user and request new users
-      if (typeof user !== "object") {
-        var room = new Room({ hostKey:user.key, gameType:k })
-        user.socket.emit("exec", "app", "", "newGame", k, { allowGuests:true, hostKey:user.key, dealerKey:user.key } );
+      if (typeof user === "object") {
+        var room = new Room({ hostKey:user.key, gameType:k, isOpen:true, isPrivate:false })
+        room.addUser(user.key);
       }
     }
   }

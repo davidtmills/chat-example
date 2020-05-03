@@ -1,44 +1,29 @@
 (function() {
 
-var Game = function (application, configKey, state) {
+var Game = function (application, pGameType, pGameState) {
+
   //store a private reference to the application
   var _app = application;
   var _isServer = (typeof module !== 'undefined' && typeof module.exports !== 'undefined');
   var _cards = {};
   var _stacks = {};
-  var _config = {
+  var _baseConfig = {
     id:"",
     title:"",
+    minPlayers:4,
+    maxPlayers:4,
+    trumps:[],
     description:"",
     rules:"",
-    css:"",
-    buyIn:0,
-    bidPrompt:"",
-    trumps:[],
-    chat:[],
-    gameMenu:[],
+    betInfo:{ buyIn:0, maxBuyIns:1, minBet:0, ante:0 },
+    bidInfo:{ rounds:0, minBid:0, maxBid:0, prompt:"" },
     decks:{ full:1 },
-    initUp:0,
-    initDown:0,
-    options:{
-      handStack:"hand",
-      drawStack:"deck",
-      discardStack:"discard",
-      playStack:"shared",
-      trickStack:"discard",
-      bidRounds:2,
-      minBid:0,
-      maxBid:0,
-      buyIn:1000,
-      maxBuyIns:1,
-      minBet:0,
-      maxBet:100,
-      maxRaise:100,
-      bigBlind:1,
-      smallBlind:.5 },
-    display:[["*[area='p1']","hand","owner"],["*[area='t1']","deck","everyone"],["*[area='t1']","discard","everyone"],["*[area='t1']","shared","everyone"],["*[area='t2']","hand","everyone"]]
+    joker:0,
+    css:"",
+    display:[["*[area='p1']","hand","owner"],["*[area='t1']","deck","everyone"],["*[area='t1']","discard","everyone"],["*[area='t1']","shared","everyone"],["*[area='t2']","hand","everyone"]],
+    chat:[],
+    gameMenu:[]
   }
-  _config = Object.assign(_config, typeof (configKey === "string") ? _app.gameConfigs[configKey] : configKey );
 
   //define private config variable to hold property values
   var _var = {
@@ -47,21 +32,23 @@ var Game = function (application, configKey, state) {
     trump:"",
     bid:0,
     upCard:{ key:"", stack:"", turnedDown:false },
-    players:[ new Player(_app, { key:_app.user.key, name:_app.user.name }) ],
+    players:[],
     dealerKey:_app.user.key,
     activeKey:_app.user.key,
     highKey:"",
-    configKey:_config.id,
+    gameType:((typeof pGameType === "string") && (typeof _app.gameConfigs[pGameType] === "object")) ? pGameType : "",
     lastUpdate:Date.now(),
     lastRefresh:0
   };
-  //update with state data if passed
-  if (typeof state === "object") {
-    //_var = _app.updateProperty(_var, state);
-  }
 
   /****** STATE AN UI MANAGEMENT ******/
   Object.defineProperty(this,"toJSON",{
+    /**
+     * Purpose: Return a hash of state variables as JSON which can be used
+     *  to reinstantiate an exact copy of this object by reapplying to state
+     *
+     * @return {object} all private state variables serialized to JSON
+     **/
     value:function() {
       return this.state;
     },
@@ -69,6 +56,14 @@ var Game = function (application, configKey, state) {
   });
 
   Object.defineProperty(this,"state",{
+    /**
+     * Purpose: Sets update timestamp and private state variables, if 'ready'
+     *  variable changes to true the entire UI is also refreshed.
+     *
+     * @param {object} value A hash of private variables to be updated
+     *
+     * @return {object} Hash of all private state variables serialized to JSON
+     **/
     get: function() {
       var obj = {
         key:_var.key,
@@ -80,8 +75,9 @@ var Game = function (application, configKey, state) {
         dealerKey:_var.dealerKey,
         activeKey:_var.activeKey,
         highKey:_var.highKey,
-        configKey:_var.configKey,
+        gameType:_var.gameType,
         lastUpdate:_var.lastUpdate,
+        ready:_var.ready,
         cardState:Object.values(_cards).map((v) => v.state),
         stackState:Object.values(_stacks).map((v) => v.state)
       }
@@ -89,13 +85,7 @@ var Game = function (application, configKey, state) {
     },
     set: function(value) {
       console.log("game.state", value);
-      //var prop = _var;
-      //var cards = _cards;
-      //var stacks = _stacks;
       var isDirty = false;
-
-      //todo: Maybe add check to make sure new lastUpdate is higher than current
-      //and if not ignore the update
 
       //Now update any other property states
       for (var k in value) {
@@ -123,7 +113,7 @@ var Game = function (application, configKey, state) {
             }
             break;
           case "playerState":
-            //Apply Player states, could be none, some or all cards
+            //Apply Player states, could be none, some or all players
             //we are non-destructive to unspecified players
             if (Array.isArray(value["playerState"])) {
               isDirty = true;
@@ -149,54 +139,65 @@ var Game = function (application, configKey, state) {
         }
       }
 
-      if (!_app.ready) {
-        //if _app.ready is false then we need to initialize the UI
-        _app.ready = true;
-        this.lastUpdate = Date.now();
-        this.gamearea();
-        this.refreshUI(true);
-      } else if ((isDirty) && (typeof value.lastUpdate !== "number")) {
-        //make sure lastUpdate is updated if not specified in state
-        //and any game-level properties were changed
-        _var.lastUpdate = Date.now();
-      }
+      //make sure last updated is set to now or specified timestamp
+      _var.lastUpdate = (typeof value.lastUpdate !== "number") ? value.lastUpdate : Date.now();
 
     },
     enumerable: false
   });
 
   Object.defineProperty(this,"lastUpdate",{
-    get: function() { return (typeof _var.lastUpdate == "number") ? _var.lastUpdate : 0 },
+    /**
+     * Purpose: Passes state changes to other clients and sets timestamp of last change.
+     *
+     * @param {number}  [pushState] New value for last update timestamp.
+     * @param {boolean} [pushState] When true entire object state is sent.
+     * @param {Object}  [pushState] Hash of state variable name/values to send.
+     *
+     * @return {number}  The last time object was updated in Date msecs.
+     **/
+    get: function() {
+      return (typeof _var.lastUpdate == "number") ? _var.lastUpdate : 0
+    },
     set: function(pushState) {
-      _var.lastUpdate = Date.now();
-      //if (_app.ready === false) { return; }
+      _var.lastUpdate = (typeof pushState === "number") ? pushState : Date.now();
+      //Game object is actually never used on the server, but check for consistency
       var socket = (_app.key === "SERVER") ? _app.io.to(_var.key) : _app.io;
-      switch (typeof pushState) {
-        case "object":
-          socket.emit("state", "game", _var.key, pushState);
-          break;
-        case "number":
-          _var.lastUpdate = pushState;
-          break;
-        case "boolean":
-          if (pushState) {
-            socket.emit("state", "game", _var.key, this.state);
-          }
-          break;
-        default:
-          warn("Invalid type (" + typeof pushState + ") lastUpdate", pushState);
-          break;
+      //Now process the data to send
+      if (_app.ready === false) {
+        //don't send state when initializing
+      } else if (pushState === true) {
+        //if true passed, then send the entire state of the object
+        socket.emit("state", "game", _var.key, this.state);
+      } else if (typeof pushState === "object") {
+        //otherwise send just the specified property changes
+        socket.emit("state", "game", _var.key, pushState);
+      } else {
+        //if something other than true or an update object were sent log the error
+        if (typeof pushState !== "number") {
+          console.log("Invalid type (" + typeof pushState + ") lastUpdate", pushState);
+        }
       }
     },
     enumerable: false
   });
 
   Object.defineProperty(this,"lastRefresh",{
+    /**
+     * Purpose: Used with lastUpdate to determine if object's UI needs refreshed.
+     *
+     * @return {number}  The last time object UI was refreshed in Date msecs.
+     **/
     get: function() { return (typeof _var.lastRefresh == "number") ? _var.lastRefresh : 0 },
     enumerable: false
   });
 
   Object.defineProperty(this,"refreshUI",{
+    /**
+     * Purpose: Used with lastUpdate to determine if object's UI needs refreshed.
+     *
+     * @return {number}  The last time object UI was refreshed in Date msecs.
+     **/
     value:function(refreshAll) {
       console.log('game.refreshUI');
       if (!_app.ready) {  return; }
@@ -207,6 +208,7 @@ var Game = function (application, configKey, state) {
       _var.lastRefresh = before;
       //each stack will call to refresh card state of each of its cards
       for (k in _stacks) {
+        console.log("refreshing stack", k, forceRefresh);
         _stacks[k].refreshUI(forceRefresh);
       }
     },
@@ -221,20 +223,23 @@ var Game = function (application, configKey, state) {
 
   Object.defineProperty(this,"seats",{
     get: function() {
+      var gameConfig = this.config;
       var seats = [];
-      var maxPlayers = (typeof _config.maxPlayers === "number") ? _config.maxPlayers : 4;
+      var maxPlayers = (typeof gameConfig.maxPlayers === "number") ? gameConfig.maxPlayers : 4;
       //get all users in the room so we can add new players to empty seats
-      var users = ((typeof _app.room === "object") && (typeof _app.room.users === "object")) ? Object.values(_app.room.users).map((v) => ({ key:v.key, name:v.name })) : [];
+      var userlist = ((typeof _app.room === "object") && (typeof _app.room.users === "object")) ? Object.values(_app.room.users).map((v) => ({ key:v.key, name:v.name })) : [];
       //remove existing players from the list of available users
-      users = users.filter((v) => (typeof _app.game.getPlayer(v.key) !== "object"));
+      userlist = userlist.filter((v) => (typeof _app.game.getPlayer(v.key) !== "object"));
       for (var x = 0; x < maxPlayers; x++) {
-        var seat = { index:x, position:(x + 1), key:"", name:"", folded:true };
+        var seat = Object.assign({}, _app.protoPlayer);
         if (_var.players.length > x) {
-          console.log(_var.players[x]);
-          seat = Object.assign(seat, _var.players[x]);
-        } else if (users.length > 0) {
-          seat = Object.assign(seat, users.pop());
+          seat = Object.assign(seat, _app.room.users[_var.players[x].key].state, _var.players[x]);
+        } else if (userlist.length > 0) {
+          console.log(userlist);
+          var u = userlist.pop();
+          seat = Object.assign(seat, u.state);
         }
+        seat = Object.assign(seat, { index:x, position:(x + 1)})
         seats.push(seat);
       }
       return seats;
@@ -248,6 +253,28 @@ var Game = function (application, configKey, state) {
       if ((typeof value === "string") && (_var.mode !== value)) {
         _var.mode = value;
         _var.lastUpdate = { mode:value };
+      }
+    },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"bidInfo",{
+    get: function() { return _var.bidInfo; },
+    set: function(value) {
+      if ((typeof value === "object") && (_var.bidInfo !== value)) {
+        _var.bidInfo = Object.assign(_var.bidInfo, value);
+        _var.lastUpdate = { bidInfo:value };
+      }
+    },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"betInfo",{
+    get: function() { return _var.betInfo; },
+    set: function(value) {
+      if ((typeof value === "object") && (_var.betInfo !== value)) {
+        _var.betInfo = Object.assign(_var.betInfo, value);
+        _var.lastUpdate = { betInfo:value };
       }
     },
     enumerable: false
@@ -295,33 +322,43 @@ var Game = function (application, configKey, state) {
 
   Object.defineProperty(this,"display",{
     get: function() {
-      return (Array.isArray(_config["display"])) ?  _config.display : [["*[area='p1']","hand","owner"],["*[area='t1']","deck","everyone"],["*[area='t1']","discard","everyone"],["*[area='t1']","shared","everyone"],["*[area='t2']","hand","everyone"]];
+      return this.config.display;
     },
     enumerable: false
   });
 
   Object.defineProperty(this,"title",{
-    get: function() { return (typeof _config.title == "string") ? _config.title : ""; },
+    get: function() {
+      return this.config.title;
+    },
     enumerable: false
   });
 
   Object.defineProperty(this,"description",{
-    get: function() { return (typeof _config.description == "string") ? _config.description : ""; },
+    get: function() {
+      return this.config.description;
+    },
     enumerable: false
   });
 
   Object.defineProperty(this,"rules",{
-    get: function() { return (typeof _config.rules == "string") ? _config.rules : ""; },
+    get: function() {
+      return this.config.rules;
+    },
     enumerable: false
   });
 
   Object.defineProperty(this,"css",{
-    get: function() { return (typeof _config.css == "string") ? _config.css : ""; },
+    get: function() {
+      return this.config.css;
+    },
     enumerable: false
   });
 
   Object.defineProperty(this,"trumps",{
-    get: function() { return (typeof _config.trumps == "object") ? _config.trumps : []; },
+    get: function() {
+      return this.config.trumps;
+    },
     enumerable: false
   });
 
@@ -453,8 +490,10 @@ var Game = function (application, configKey, state) {
   });
 
   Object.defineProperty(this,"config",{
-    get: function() { return _config; },
-    //set: function(value) { _config = value; },
+    get: function() {
+      var config = Object.assign({}, _baseConfig, _app.gameConfigs[_var.gameType] );
+      return config;
+    },
     enumerable: false
   });
 
@@ -562,15 +601,16 @@ var Game = function (application, configKey, state) {
   });
 
   Object.defineProperty(this,"initCards",{
-    value:function(gameId) {
-      //Rebuilds the cards collection based on game config
+    value:function() {
 
-      var gameConfig = _config;
+      //Rebuilds the cards collection based on game config
+      var gameConfig = this.config;
       var deckTypeId = "";
       var face = "down";
 
       /***** RESET card arrays and collections *************/
-      _cards = {};
+      _cards = {}
+      cards = _cards;
 
       /***** REBUILD CARDS COLLECTION *************/
 
@@ -614,13 +654,14 @@ var Game = function (application, configKey, state) {
               opt.key = 'd' + deckPrefix + deck[c].id + n;
               var card = new Card(_app, opt);
               //add to cards collection
-              _cards[card.key] = card;
+              cards[card.key] = card;
             }
           }
         }
       }
 
-      return _cards;
+      console.log("initCards", cards);
+
     },
     enumerable: false
   });
@@ -701,19 +742,80 @@ var Game = function (application, configKey, state) {
     enumerable: false
   });
 
+  Object.defineProperty(this,"initPlayers",{
+    value:function(pPlayers, pDesiredPlayers) {
+      var player, roomUsers;
+      var optAdd = {};
+      var optReset = { folded:false, active:false, high:false, opener:false };
+      var config = this.config;
+      var dealerKey = config.dealerKey;
+      var desiredPlayers = (typeof pDesiredPlayers === "number") ? pDesiredPlayers : (Array.isArray(pPlayers)) ? pPlayers.length : config.maxPlayers;
+      var players = (Array.isArray(pPlayers)) ? pPlayers.slice() : _var.players.slice();
+      var room = (typeof _app.room === "object") ? _app.room : { users:{} };
+
+      //if more players than allowed or desired
+      while (players.length > Math.min(desiredPlayers, config.maxPlayers)) {
+        player = players.pop();
+        //tell player they were removed
+      }
+
+      //if we have fewer than desired number of players, try to add from room.users
+      if (players.length < Math.max(desiredPlayers, config.minPlayers)) {
+        //get a list of keys and names of all users in room
+        roomUsers = Object.values(room.users).map((v) => (Object.assign({key:v.key, name:v.name})));
+        //remove users who are already in players array
+        roomUsers = roomUsers.filter(function(v){
+          var key = v.key;
+          var idx = players.findIndex((p) => (p.key === key));
+          return (idx == -1);
+        });
+        while ((roomUsers.length > 0) && (players.length < Math.max(desiredPlayers, config.minPlayers))) {
+          player = roomUsers.pop();
+          players.push(player);
+          //tell everyone player has joined the game
+        }
+      }
+
+      //preserve player information, but make sure required data is included
+      players = players.map(function (v) {
+        p = Object.assign({}, _app.protoPlayer, optAdd, (typeof v === "string") ? { key:v } : v, optReset );
+        //User previous dealer if none specified
+        if ((dealerKey === "") && (p.dealer === true)) { dealerKey = p.key; }
+        //always get name from room.users
+        p.name = (typeof room.users[p.key] === "object") ? room.users[p.key].name : p.key;
+        p.dealer = (p.key === dealerKey);
+        return p;
+      });
+
+      //If dealer not actual found, reset dealerKey to empty string
+      if ((dealerKey !== "") && (players.findIndex((v) => (v.key === dealerKey)) != -1)) {
+        dealerKey = "";
+      }
+
+      //Set first player to dealer if none specified
+      if ((dealerKey === "") && (players.length > 0)) {
+        players[0].dealer = true;
+      }
+
+      _var.players = players;
+    },
+    enumerable: false
+  });
+
   Object.defineProperty(this,"initStacks",{
-    value:function(paramGameConfig) {
-
-      var gameConfig = (typeof paramGameConfig == "object") ? paramGameConfig : _config;
-      var arrStackConfigs = gameConfig.stacks;
-      var x, p, k, group, cfg, card, n, cards;
+    value:function(pConfig) {
+      //use passed stackConfig array
+      var arrStackConfigs = (Array.isArray(pConfig)) ? pConfig.slice() : ((typeof pConfig === "object") && (Array.isArray(pConfig['stacks']))) ? pConfig.stacks.slice() : ((typeof pConfig === "string") && (typeof _app.gameConfigs[pConfig] === "object")) ? _app.gameConfigs[pConfig].stacks : this.config.stacks;
       var arrCfg = []; //holds expanded config files to process
+      var players = _var.players;
+      var arrState, cards, availCards, stack, group, cfg, card;
+      var x, p, k, n;
 
-      //clear out all stacks from collection and add default stacks back
-      _stacks = {};
+      _stacks = {}
+      var stacks = _stacks;
 
       //Deck Defaults
-      _stacks["deck"] = new Stack(_app, {
+      stacks["deck"] = new Stack(_app, {
           key:"deck", label:"Deck", group:"deck", shared:true, layout:"stack", face:"down", initUp:0, initDown:0, cardAction:"select",
           actions:[
             { key:"deal", label:"Deal", menu:"stack", fn:"deal", obj:"stack", cards:"stack", groups:["hand:*"], filters:{ dealer:true, minCards:1 }, options:{} },
@@ -722,7 +824,7 @@ var Game = function (application, configKey, state) {
         });
 
       //Discard Defaults
-      _stacks["discard"] = new Stack(_app, {
+      stacks["discard"] = new Stack(_app, {
           key:"discard", label:"Discard", group:"discard", shared:true, layout:"stack", face:"up", initUp:0, initDown:0, cardAction:"select",
           actions:[
             { key:"pickup", label:"Pick Up", menu:"stack", fn:"move", obj:"stack", cards:"selection", groups:[ "hand:owner" ], filters:{ everyone:true, minCards:1 }, options:{} }
@@ -730,7 +832,7 @@ var Game = function (application, configKey, state) {
         });
 
       //Shared Defaults
-      _stacks["shared"] = new Stack(_app, {
+      stacks["shared"] = new Stack(_app, {
           key:"shared", label:"Shared", group:"shared", shared:true, layout:"space", face:"up", initUp:0, initDown:0, cardAction:"select",
           actions:[
             { key:"draw", label:"Draw", menu:"stack", fn:"draw", obj:"stack", cards:"stack", groups:["deck:*"], filters:{ dealer:true }, options:{} }
@@ -738,9 +840,9 @@ var Game = function (application, configKey, state) {
         });
 
       //Hand(s) Defaults
-      for (x = 0; x < _var.players.length; x++) {
-        _stacks["hand_" + x] = new Stack(_app, {
-            key:"hand_" + x, label:"Hand", group:"hand", shared:false, layout:"fan", face:"down", initUp:0, initDown:0, owner:_var.players[x].key, cardAction:"select",
+      for (x = 0; x < players.length; x++) {
+        stacks["hand_" + x] = new Stack(_app, {
+            key:"hand_" + x, label:"Hand", group:"hand", shared:false, layout:"fan", face:"down", initUp:0, initDown:0, owner:players[x].key, cardAction:"select",
             actions:[
               { key:"draw", label:"Draw", menu:"stack", fn:"draw", obj:"stack", cards:"selection", groups:["deck:*"], filters:{ }, options:{} },
               { key:"discard", label:"Discard", menu:"stack", fn:"move", obj:"stack", cards:"selection", groups:["discard:shared","discard:owner"], filters:{ owner:true, minSel:1 }, options:{} }
@@ -757,31 +859,33 @@ var Game = function (application, configKey, state) {
           arrCfg.push(Object.assign({}, cfg, { owner:"" }));
         } else {
           //otherwise, create a stack with a unique key for each player
-          for (p = 0; p < _var.players.length; p++) {
-            arrCfg.push(Object.assign({}, cfg, { key:group + '_' + p, owner:_var.players[p].key }));
+          for (p = 0; p < players.length; p++) {
+            arrCfg.push(Object.assign({}, cfg, { key:group + '_' + p, owner:players[p].key }));
           }
         }
       }
 
       //now iterate thru stack configs adding or updating each
       for (x = 0; x < arrCfg.length; x++ ) {
-        var cfg = arrCfg[x];
-        if (typeof _stacks[cfg.key] == "object") {
+        cfg = arrCfg[x];
+        if (typeof stacks[cfg.key] == "object") {
           //entry exists so just update it
           for (k in cfg) {
-            _stacks[cfg.key][k] = cfg[k];
+            stacks[cfg.key][k] = cfg[k];
           }
         } else {
           //otherwise create a new stack
-          _stacks[cfg.key] = new Stack(_app, cfg);
+          stacks[cfg.key] = new Stack(_app, cfg);
         }
       }
 
-      //Now rebuild cards collection
+      //if a cards collections was passed then init stack cards using it instead
       this.initCards();
 
+      var cards = _cards;
+
       //get all the card keys from the cards collection
-      var availCards = Object.keys(_cards);
+      availCards = Object.keys(cards);
       //now shuffle the cards
       for (let i = availCards.length - 1; i > 0; i--) {
         let j = Math.floor(Math.random() * (i + 1)); // random index from 0 to i
@@ -789,54 +893,23 @@ var Game = function (application, configKey, state) {
       }
 
       //now initialize cards in each
-      for (k in _stacks) {
-        var stack = _stacks[k];
+      for (k in stacks) {
+        stack = stacks[k];
         //initial down cards
         var downKeys = availCards.splice(-1 * stack.initDown, stack.initDown);
         var upKeys = availCards.splice(-1 * stack.initUp, stack.initUp);
-        downKeys.forEach(function(v){ _cards[v].lastUpdate = { stack:stack.key, face:'down', selected:false }; });
-        upKeys.forEach(function(v) { _cards[v].lastUpdate = { stack:stack.key, face:'up', selected:false }; });
-        _stacks[k].cardKeys = _stacks[k].cardKeys.concat(downKeys, upKeys);
+        downKeys.forEach(function(v){ cards[v].lastUpdate = { stack:stack.key, face:'down', selected:false }; });
+        upKeys.forEach(function(v) { cards[v].lastUpdate = { stack:stack.key, face:'up', selected:false }; });
+        stacks[k].cardKeys = stacks[k].cardKeys.concat(downKeys, upKeys);
       }
+
       //now add remining cards to the front of deck stack
-      if ((typeof _stacks.deck === "object") && (availCards.length > 0)) {
-        availCards.forEach(function(v){ _cards[v].lastUpdate = { stack:'deck', face:'down', selected:false }; });
-        _stacks.deck.cardKeys = [].concat(availCards, _stacks.deck.cardKeys);
+      if ((typeof stacks.deck === "object") && (availCards.length > 0)) {
+        availCards.forEach(function(v){ cards[v].lastUpdate = { stack:'deck', face:'down', selected:false }; });
+        stacks.deck.cardKeys = [].concat(availCards, stacks.deck.cardKeys);
       }
 
-/*
-      //Add all cards to the deck stack and shuffle them
-      if (typeof _stacks.deck == "object") {
-        _stacks.deck.cardKeys = Object.keys(_cards);
-        _stacks.deck.shuffle();
-      }
-
-      //now initialize cards in each
-      for (k in _stacks) {
-        //initial down cards
-        n = (typeof _stacks[k].initDown == "number") ? _stacks[k].initDown : 0;
-        if ((n > 0) && (k != "deck")) {
-          _stacks[k].draw({ group:"deck", num_cards:n, face:"down", selected:false });
-        }
-        //initial up cards
-        n = (typeof _stacks[k].initUp == "number") ? _stacks[k].initUp : 0;
-        if (n <= 0) {
-          //no cards need to be drawn
-        } else if (k != "deck") {
-          //draw n cards from the deck face up
-          _stacks[k].draw({ group:"deck", num_cards:n, face:"up", selected:false });
-        } else {
-          //special case for deck up cards, we just change their face property
-          cards = _stacks[k].cards;
-          for (n = Math.max(cards.length - n, 0); n < cards.length; n++) {
-            cards[n].face = "up";
-          }
-        }
-        _stacks[k].groupBy(_stacks[k]["sort"]);
-      }
-
-*/
-      this.refreshUI(true);
+      console.log("initStacks", _stacks);
 
     },
 
@@ -856,17 +929,43 @@ var Game = function (application, configKey, state) {
   });
 
   Object.defineProperty(this,"init",{
-    value:function(paramConfig) {
-      //*** Initialize players
-/*
-      if (_var.players.length == 0) {
-        _var.players.push(new Player(_app, { key:_app.user.key, name:_app.user.name }));
+    /**
+     * Purpose: Initialize using passed gameType, players or game state object.
+     *
+     * @param {string}  [pConfig] Game configuration key.
+     * @param {Array}   [pConfig] Player json array each of the form protoPlayer.
+     * @param {Object}  [pConfig] Game state object.
+     * @param {Object}  [pOptions] Options to use when initializing players.
+     **/
+    value:function(pData) {
+      console.log("Initialize", pData);
+      var pGameType = pData["gameType"];
+      var pPlayers = pData["players"];
+      var pState = pData["state"];
+      var room = (typeof _app.room === "object") ? _app.room : { gameType:pGameType };
+      var gameConfig = _app.gameConfigs[pGameType];
+      var players = (Array.isArray(pPlayers)) ? pPlayers.slice() : _var.players.slice();
+
+      //silently set ready flag to false to stop UI updates and state synching
+      _app.ready = false;
+      _var.gameType = pGameType;
+      this.initPlayers(pPlayers);
+      this.initStacks(gameConfig.stacks);
+
+      if (typeof pState === "object") {
+        console.log("APPLYING STATE", pState)
+        _app.ready = true;
+        this.state = pState;
+        console.log("RESULT", this.state);
+        _var.ready = true;
+        _var.lastUpdate = Date.now();
+        this.gamearea();
+        this.refreshUI(true);
+      } else {
+        console.log("EMITTING", { gameType:_var.gameType, players:_var.players, state:this.state });
+        _app.io.emit("initGame", { gameType:_var.gameType, players:_var.players, state:this.state });
       }
-      _var.players.push(new Player(_app, { key:"jmills", name:"Jennifer" }));
-      _var.players.push(new Player(_app, { key:"hmills", name:"Helen" }));
-      _var.players.push(new Player(_app, { key:"lmills", name:"Liam" }));
-      this.newHand();
-*/
+
     },
     enumerable: false
   });
@@ -876,11 +975,15 @@ var Game = function (application, configKey, state) {
 
       _app.applyTemplate("gamearea", _app, "#gamearea");
 
+      var gameConfig = this.config;
+
+      $("#game-css").html(this.css);
+
       //output public stacks
       var stacks = Object.values(_stacks).filter((v) => v.key == v.group)
       stacks.forEach(function(paramStack) {
         var stack = paramStack;
-        _config.display.forEach(function(displayItem) {
+        gameConfig.display.forEach(function(displayItem) {
           //if item is for this stack then append the stack's html to matched selectors
           if (displayItem[1] == stack.key) {
             $(displayItem[0]).append(_app.applyTemplate("stack", stack));
@@ -897,7 +1000,7 @@ var Game = function (application, configKey, state) {
         var stacks = Object.values(_stacks).filter((v) => v.key == v.group + playerSuffix);
         stacks.forEach(function(paramStack) {
           var stack = paramStack;
-          _config.display.forEach(function(paramDisplayItem) {
+          gameConfig.display.forEach(function(paramDisplayItem) {
             var arrItem = paramDisplayItem;
             var selector = arrItem[0];
             var matchGroup = arrItem[1];
@@ -918,55 +1021,99 @@ var Game = function (application, configKey, state) {
   });
 
   Object.defineProperty(this,"newHand",{
-    value:function(pConfig) {
-
-      _app.ready = false;
-
+    value:function(pPlayers, pDealerKey, pGameType) {
       var x=0;
       var html = "";
-      var gameConfig = _config;
-      var stacks;
+      var optAdd = {};
+      //player settiungs that reset on each hand (dealer is handled separately)
+      var optReset = { folded:false, active:false, high:false, opener:false };
 
-      //set the access code to the game's key (i.e. the room key for the game)
-      _app.accessCode = this.key;
-      _app.gameType = _var.configKey;
+      var stacks, player, players, dealerKey, gameConfig, desiredPlayers, roomUsers;
 
-      //preserve player information
-      var players = _var.players;
+      //set ready flag to false to stop synching and rendering changes
+      _app.ready = false;
 
-      //use existing setting for any settings that are missing in pConfig
-      var opt = Object.assign ({ players:_var.players, dealerKey:_var.dealerKey, activeKey:_var.dealerKey, highKey:"" }, pConfig);
+      //update private _var.gameType
+      _var.gameType = (typeof pGameType === "string") ? pGameType : _var.gameType;
 
+      gameConfig = this.config;
+
+      dealerKey = (typeof pDealerKey === "string") ? pDealerKey : "";
+
+      players = (Array.isArray(pPlayers)) ? pPlayers : (_var.players.length > 0) ? _var.players.slice() : [];
+
+      //if more players than game maximum remove players
+      while (players.length > gameConfig.maxPlayers) {
+        player = players.pop();
+        //tell player they were removed
+      }
+
+      //If we have fewer players than desired, add more from room.users if available
+      desiredPlayers = gameConfig.maxPlayers;
+      if (players.length < desiredPlayers) {
+        //build list of settings besides key and name to include for each user
+        optAdd = (gameConfig.betInfo.buyIn > 0) ? { buyIns:1, bank:gameConfig.betInfo.buyIn } : {};
+        //get a list of keys and names of all users in room
+        roomUsers = (typeof _app.room === "object") ? Object.values(_app.room.users).map((v) => (Object.assign({key:v.key, name:v.name}, optAdd ))) : [];
+        //remove users who are already in players array
+        roomUsers = roomUsers.filter(function(v){
+          var key = v.key;
+          var idx = players.findIndex((p) => (p.key === key));
+          return (idx == -1);
+        });
+        while ((roomUsers.length > 0) && (players.length < desiredPlayers)) {
+          player = roomUsers.pop();
+          players.push(player);
+          //tell everyone player has joined the game
+        }
+      }
+
+      //preserve player information, but make sure required data is included
+      players = players.map(function (v) {
+        p = Object.assign({}, _app.protoPlayer, (typeof v === "string") ? { key:v } : (typeof v === "object") ? v : {}, optReset );
+
+        //User previous dealer if none specified
+        if ((dealerKey === "") && (p.dealer === true)) { dealerKey = p.key; }
+
+        //always get name from room.users
+        p.name = ((typeof _app.room === "object") && (typeof _app.room.users[p.key] === "object")) ? _app.room.users[p.key].name : p.key;
+        //reset settings for start of a game
+        p.dealer = (p.key === dealerKey);
+
+        return p;
+      });
+
+      //If dealer not actual found, reset dealerKey to empty string
+      if ((dealerKey !== "") && (players.findIndex((v) => (v.key === dealerKey)) != -1)) {
+        dealerKey = "";
+      }
+
+      //Set first player to dealer if none specified
+      if ((dealerKey === "") && (players.length > 0)) {
+        players[0].dealer = true;
+      }
+
+      //update the private players variable with the new players
+      _var.players = players;
 
       //apply game-specific css
       $("#game-css").html(this.css);
 
-      //reset hand-level properties
-      _var.players = (Array.isArray(opt.players)) ? opt.players : _var.players;
-      //add the user as the first player if no players are defined
-      if (_var.players.length === 0) {
-        _var.players = [ new Player(_app, { key:_app.user.key}) ];
-        _var.dealerKey = (typeof opt.dealerKey === "string") ? opt.dealerKey : (_var.dealerKey != "") ? _var.dealerKey : _var.players[0].key;
-        _var.activeKey = (typeof opt.activeKey === "string") ? opt.activeKey : _var.dealerKey;
-        _var.highKey = (typeof opt.highKey === "string") ? opt.highKey : "";
-      }
-
-
       //reset player's hand level properties
-
       //rebuilds cards collection and resets all stacks
       this.initStacks();
 
       //clear playing area
-      _app.applyTemplate("gamearea", _app, "#gamearea");
+      //_app.applyTemplate("gamearea", _app, "#gamearea");
 
       /* Set Game Title */
-      $("body").attr("game", this.title)
+      //$("body").attr("game", this.title)
 
       //this.gamearea();
-      //_app.ready = true;
-      this.lastUpdate = true;
-      _var.lastRefresh = 0;
+
+      //send game initialization event to all clients
+      _app.io.emit("initGame", this.state);
+
     },
     enumerable: false
   });

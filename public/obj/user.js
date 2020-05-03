@@ -6,7 +6,7 @@ var User = function (application, config) {
   var _isServer = (typeof module !== 'undefined' && typeof module.exports !== 'undefined');
 
   //define private config variable to hold property values
-  var _var = Object.assign ( { key:_app.randomCode(6, "u"), accessCode:"", gameType:"", username:"", name:"", email:"", photo:"", avatar:"", lastUpdate:Date.now(), lastRefresh:0 }, config );
+  var _var = Object.assign ( { key:_app.randomCode(6, "u"), username:"", name:"", email:"", photo:"", avatar:"", lastUpdate:Date.now(), lastRefresh:0 }, config );
 
   /****** STATE AN UI MANAGEMENT ******/
   Object.defineProperty(this,"toJSON",{
@@ -84,28 +84,6 @@ var User = function (application, config) {
   Object.defineProperty(this,"key",{
     get: function() { return _var.key; },
     //set: function(value) { _var.key = value; },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"accessCode",{
-    get: function() { return _var.accessCode; },
-    set: function(value) {
-      if ((typeof value === "string") && (_var.accessCode != value)) {
-        _var.accessCode = value;
-        this.lastUpdate = { accessCode:value };
-      }
-    },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"gameType",{
-    get: function() { return _var.gameType; },
-    set: function(value) {
-      if ((typeof value === "string") && (_var.gameType != value)) {
-        _var.gameType = value;
-        this.lastUpdate = { gameType:value };
-      }
-    },
     enumerable: false
   });
 
