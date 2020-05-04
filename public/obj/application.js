@@ -3,7 +3,7 @@
 var Application = function (appKey, socket) {
   var _app = this;
   var _isServer = (typeof module !== 'undefined' && typeof module.exports !== 'undefined');
-
+  var _timer = 0;
   //define private config variable to hold property values
   var _var = { key:appKey, user:undefined, room:undefined, game:undefined, templates:{}, gameConfigs:{}, ready:true };
 
@@ -16,6 +16,51 @@ var Application = function (appKey, socket) {
   Object.defineProperty(this,"io",{
     value: socket,
     writable: false,
+    enumerable: false
+  });
+
+  if (_var.key === "SERVER") {
+    Object.defineProperty(this,"tick",{
+      value: function(){
+        //handle QuickPlays
+      },
+      writable: false,
+      enumerable: false
+    });
+  } else {
+    Object.defineProperty(this,"tick",{
+      value: function(){
+        var room = _app.room;
+        var user = _app.user;
+        if (typeof user === "object") {
+          if (typeof room === "object") {
+            if (room.hostKey == user.key) {
+              var gameType = room.gameType;
+              var game = _app.game;
+              var config = (typeof _app.gameConfigs[gameType] === "object") ? _app.gameConfigs[gameType] : { minPlayers:0 };
+              //update the waiting variables based on minimum players threshold
+              room.waiting = Math.max(0, config.minPlayers - Object.keys(room.users).length);
+            }
+          }
+        }
+      },
+      writable: false,
+      enumerable: false
+    });
+  }
+
+  Object.defineProperty(this,"timer",{
+    get: function() {
+      return _timer;
+    },
+    set: function(value) {
+      clearInterval(_timer);
+      if (value === true) {
+        _timer = setInterval(_app.tick, 5000);
+      } else {
+        _timer = 0;
+      }
+    },
     enumerable: false
   });
 
@@ -384,7 +429,9 @@ var Application = function (appKey, socket) {
         socket.on('addUser', function(pConfig){
           var room = _app.room;
           var userData = pConfig;
+          console.log(room, userData)
           if ((typeof room === "object") && (typeof userData.key === "string") && (userData.key !== "")) {
+            console.log("TRYIN")
             //use room property to just update the LOCAL copy
             room.addUser(userData, true)
           }

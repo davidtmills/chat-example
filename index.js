@@ -174,6 +174,7 @@ io.on('connection', socket => {
     var accessCode = (typeof pAccessCode === "string") ? pAccessCode : "";
     var user = _app.getUser(userKey);
     var room = _app.getRoom({ accessCode:accessCode });
+    console.log(userKey, accessCode, room)
     if ((typeof user === "object") && (typeof room === "object")) {
       room.addUser(userKey);
       console.log(userKey + ' joined ' + room.key + ' with code ' + accessCode);
@@ -233,15 +234,17 @@ io.on('connection', socket => {
   socket.on('initGame', function(pData){
     var user = _app.getUser(this.__userKey);
     var room = _app.getRoom(this.__roomKey);
-    console.log("Broadcasting Initialize Game Event ...");
-    _app.io.to(room.key).emit("initGame", pData);
+    if (user && room) {
+      console.log("Broadcasting Initialize Game Event ...");
+      _app.io.to(room.key).emit("initGame", pData);
+    }
   });
 
   socket.on('quickPlay', function(pGameType){
     var user = _app.getUser(this.__userKey);
     var room = _app.getRoom(this.__roomKey);
-    var gameType = (typeof pGameType === "string") ? pGameType : ((typeof room === "object") && typeof room.gameType === "string") ? room.gameType : "";
-    if ((typeof user === "object") && (typeof _app.waitlist[gameType] === "object")) {
+    var gameType = (typeof pGameType === "string") ? pGameType : (room && typeof room.gameType === "string") ? room.gameType : "";
+    if (user && _app.waitlist[gameType]) {
       for (var k in _app.waitlist) {
         _app.waitlist[k].users.forEach((v) => { if (v === user.key) { v = "" } });
       }
@@ -252,7 +255,7 @@ io.on('connection', socket => {
   socket.on('cancelQuickPlay', function(){
     var user = _app.getUser(this.__userKey);
     var room = _app.getRoom(this.__roomKey);
-    if (typeof user === "object") {
+    if (user) {
       for (var k in _app.waitlist) {
         _app.waitlist[k].users.forEach((v) => { if (v === user.key) { v = "" } });
       }

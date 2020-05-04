@@ -9,15 +9,12 @@ $(function () {
     if (typeof window._app !== "object") {
       window._timer = 0;
       window._app = new Application(appKey, this);
-      //initialize the app
       _app.init();
-      window.clearInterval(_timer);
-      //_timer = window.setInterval(_app.refreshUI, 250);
+      _app.timer = true;
     } else {
       window._app.key = appKey;
     }
   }); // end sock.on connect
-
 
   $('body').on('touchstart', '*[stack] .card-item[card]', function(){ $(this).addClass('pressed') })
   $('body').on('touchend', '*[stack] .card-item[card]', function(){ $(".pressed").removeClass('pressed') })

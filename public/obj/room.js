@@ -6,7 +6,7 @@ var Room = function (application, config) {
   var _app = application;
 
   //define private config variable to hold property values
-  var _var = Object.assign({ key:_app.randomCode(6), title:"", hostKey:"", users:{}, blockedUsers:{}, gameType:"", accessCode:_app.randomCode(6), isOpen:true, isPrivate:true, minUsers:0, maxUsers:10000, lastUpdate:Date.now(), lastRefresh:0 }, config);
+  var _var = Object.assign({ key:_app.randomCode(6), title:"", hostKey:"", users:{}, blockedUsers:{}, gameType:"", accessCode:_app.randomCode(6), isOpen:true, isPrivate:true, waiting:0, minUsers:0, maxUsers:10000, lastUpdate:Date.now(), lastRefresh:0 }, config);
 
   /****** STATE AN UI MANAGEMENT ******/
   Object.defineProperty(this,"toJSON",{
@@ -30,6 +30,7 @@ var Room = function (application, config) {
         isPrivate:_var.isPrivate,
         minUsers:_var.minUsers,
         maxUsers:_var.maxUsers,
+        waiting:_var.waiting,
         lastUpdate:_var.lastUpdate
       };
       return obj;
@@ -118,6 +119,28 @@ var Room = function (application, config) {
       if ((typeof value === "string") && (_var.hostKey != value)) {
         _var.hostKey = value;
         this.lastUpdate = { hostKey:value };
+      }
+    },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"waiting",{
+    get: function() {
+      return _var.waiting;
+    },
+    set: function(value) {
+      if ((typeof value === "number") && (value !== _var.waiting)) {
+        if (value === 0) {
+          _app.post({ title:"Ready", text:"We have enough players to start." });
+        } else if (value === 1) {
+          _app.post({ title:"Waiting", text:"Waiting for one more player." });
+        } else {
+          _app.post({ title:"Waiting", text:"Waiting for " + value + " more players." });
+        }
+        _var.waiting = value;
+        this.lastUpdate = { waiting:value };
+      } else {
+        console.log(value, _var.waiting);
       }
     },
     enumerable: false
@@ -236,13 +259,13 @@ if (_app.key === "SERVER") {
       socket.__roomKey = _var.key;
       socket.join(_var.key);
       socket.rooms[_var.key] = _var.title;
-      console.log(user.key, user.socket.__roomKey, user.socket.rooms);
+      console.log("262", user.key, user.socket.__roomKey, user.socket.rooms);
       //add to the room.users object
       _var.users[userKey] = user.state;
       //update the room setting for the user in question
       user.socket.emit("initRoom", this.toJSON());
       //send command to have all room members add user to thier room.users
-      _app.io.to(_var.key).emit("addUser", { user:user.state, room:_var.key});
+      _app.io.to(_var.key).emit("addUser", user.state);
       //announce arrival
       _app.sendMessage({ title:user.name, text:"has joined the room." }, _var.key);
     },
