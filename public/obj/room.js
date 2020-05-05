@@ -245,29 +245,29 @@ if (_app.key === "SERVER") {
     value:function(pUser) {
       var userKey = (typeof pUser === "object") ? pUser.key : (typeof pUser === "string") ? pUser : "";
       var user = _app.getUser(userKey);
-      var socket = user.socket;
-      //Make user leave any other room first
-      if (socket.__roomKey !== _var.key) {
-        if (socket.__roomKey !== "") {
+      if (user && user.socket) {
+        var socket = user.socket;
+        //Make user leave any other room first
+        if (!!socket.__roomKey && (socket.__roomKey !== _var.key)) {
           socket.leave(socket.__roomKey);
-          if (typeof _app.rooms[socket.__roomKey] === "object") {
+          if (_app.rooms && _app.rooms[socket.__roomKey]) {
             _app.rooms[socket.__roomKey].removeUser(user.key);
           }
         }
+        //now join user to this room
+        socket.__roomKey = _var.key;
+        socket.join(_var.key);
+        socket.rooms[_var.key] = _var.title;
+        console.log("262", user.key, user.socket.__roomKey, user.socket.rooms);
+        //add to the room.users object
+        _var.users[userKey] = user.state;
+        //update the room setting for the user in question
+        user.socket.emit("initRoom", this.toJSON());
+        //send command to have all room members add user to thier room.users
+        _app.io.to(_var.key).emit("addUser", user.state);
+        //announce arrival
+        _app.sendMessage({ title:user.name, text:"has joined the room." }, _var.key);
       }
-      //now join user to this room
-      socket.__roomKey = _var.key;
-      socket.join(_var.key);
-      socket.rooms[_var.key] = _var.title;
-      console.log("262", user.key, user.socket.__roomKey, user.socket.rooms);
-      //add to the room.users object
-      _var.users[userKey] = user.state;
-      //update the room setting for the user in question
-      user.socket.emit("initRoom", this.toJSON());
-      //send command to have all room members add user to thier room.users
-      _app.io.to(_var.key).emit("addUser", user.state);
-      //announce arrival
-      _app.sendMessage({ title:user.name, text:"has joined the room." }, _var.key);
     },
     enumerable: false
   });
