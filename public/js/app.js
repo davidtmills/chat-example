@@ -194,6 +194,21 @@ $(function () {
     }
   });
 
+  //*** Stack Actions ****/
+  $('body').on('click', '[stack-action]:not([stack-action=""])', function(event){
+    var $el = $(this);
+    var actionKey = $el.attr("stack-action");
+    var stackKey = $el.closest("[stack]").attr("stack");
+    var stack = _app.game.stacks[stackKey];
+    var actions = stack.actions.filter((v) => (v.key === actionKey));
+    if (actions.length) {
+      console.log("executing", actions[0]);
+      var action = new Action(_app, stack, actions[0]);
+      console.log(action);
+      action.execute();
+    }
+  });
+
 
   /*** Modal Dialogs optional template support *****/
   $('body').on('show.bs.modal', '.modal', function(event){
@@ -213,7 +228,7 @@ $(function () {
     var $menu = $(this).find(".dropdown-menu");
     var stack = _app.game.getStack($stack.attr("stack"));
     var actions = stack.actions;
-    actions = actions.filter((v) => stack.check(v.filter) );
+    //actions = actions.filter((v) => stack.check(v.filter) );
     _app.applyTemplate("actionlist", actions, $menu);
   })
 

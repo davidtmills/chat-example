@@ -561,14 +561,14 @@ var Application = function (appKey, socket) {
       display:[ ["*[area='p1']", "hand", "owner" ], ["*[area='t1']", "deck", "everyone" ],["*[area='t1']", "shared", "everyone" ], ["*[area='t2']", "hand", "everyone" ] ],
       chat:["Fold","Check","Call","Raise","I'm all in!"],
       stacks:[
-        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", actors:"dealer", layout:"stack-fan", face:"down", initUp:1, initDown:0, cardAction:"none", actions:[] },
-        { key:"shared", label:"Community", shared:true, viewable:true, actionable:"everyone", actors:"dealer", layout:"flop", face:"down", initUp:0, initDown:5, cardAction:"flip", actions:[] },
-        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", actors:"owner", layout:"fan", face:"down", initUp:0, initDown:2, cardAction:"none", actions:[
-          {key:"call", label:"Check or Call", filter:{ actor:"dealer", maxCards:1, minSel:0 }, action:"turn_down", extend:{ mode:"all", next_action:"end_bid" }},
-          {key:"raise", label:"Bet or Raise", filter:{ actor:"dealer", maxCards:1, minSel:0 }, action:"turn_down", extend:{ mode:"all", next_action:"end_bid" }},
-          {key:"fold", label:"Fold Hand", filter:{ actor:"dealer", maxCards:1, minSel:0 }, action:"pick_up", extend:{ next_action:"end_bid" }},
-          {key:"flip", label:"Reveal Hand", filter:{ minCards:4, minSel:0 }, action:"claim", extend:{ }}
-        ] }
+        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", actors:"dealer", layout:"stack-fan", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[
+          { key:"deal", label:"Deal", action:"deal", stackFilter:"hand", cardFace:"down", numCards:2 },
+          { key:"flop", label:"Flop", action:"deal", stackFilter:"shared", cardFace:"up", numCards:3 },
+          { key:"turn", label:"Turn", action:"deal", stackFilter:"shared", cardFace:"up" },
+          { key:"river", label:"River", action:"deal", stackFilter:"shared", cardFace:"up" }
+        ] },
+        { key:"shared", label:"Community", shared:true, viewable:true, actionable:"everyone", actors:"dealer", layout:"flop", face:"down", initUp:0, initDown:0, cardAction:"flip", actions:[] },
+        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", actors:"owner", layout:"fan", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[] }
       ]
     },
     cross:{

@@ -2,9 +2,10 @@
 
 var Stack = function (application, config) {
   var _app = application;
-  var _isServer = (typeof module !== 'undefined' && typeof module.exports !== 'undefined');
+  var _this = this;
   //a collection of cards
   var _var = { key:"", label:"", group:"", owner:"", shared:false, order:0, layout:"fan", face:"down", initUp:0, initDown:0, cardAction:"select", actions:[], cards:[], lastUpdate:Date.now(), lastRefresh:0 }
+
 
   _var.key = (typeof config.key == "string") ? config.key : "";
 
@@ -22,9 +23,11 @@ var Stack = function (application, config) {
   _var.face = (typeof config.face == "string") ? config.face : "down";
   _var.initUp = (typeof config.initUp == "number") ? config.initUp : 0;
   _var.initDown = (typeof config.initDown == "number") ? config.initDown : 0;
-  _var.actions = (typeof config.actions == "object") ? config.actions : [];
+  _var.actions = (Array.isArray(config.actions)) ? config.actions : [];
+  _var.actions = _var.actions.map(function(v){ var a = new Action(_app, _this, v); console.log(a); })
+  if (!!_var.actions.length) { console.log(_var.actions[0]); }
   _var.cardAction = (typeof config.cardAction == "string") ? config.cardAction : "select";
-  _var.cardActions = (typeof config.cardActions == "object") ? config.cardActions : [];
+  _var.cardActions = (Array.isArray(config.cardActions)) ? config.cardActions.map((v) => new Action(_app, _this, v)) : [];
   _var.actionable = config["actionable"];
   _var.viewable = config["viewable"];
   _var.actors = (typeof config.actors == "object") ? config.actors : ((typeof config.actors == "string") && (config.actors != "")) ? [ config.actors ] : [];
@@ -436,7 +439,7 @@ var Stack = function (application, config) {
   });
 
   Object.defineProperty(this,"actions",{
-    get: function() { return (typeof _var.actions == "object") ? _var.actions : []; },
+    get: function() { return (_var.actions && Array.isArray(_var.actions)) ? _var.actions : []; },
     set: function(value) {
       if ((Array.isArray(value)) && (Array.isArray(_var["actions"])) && (value.join(",") !== _var.actions.join(","))) {
         _var.actions = value;
@@ -713,6 +716,7 @@ var Stack = function (application, config) {
       if (typeof cd == "object") {
         //remove the card from its current stack by setting stack
         //cd.stack = "";
+        console.log(card, cd);
         var srcStack = _var.stacks[cd.stack];
         if (srcStack === "object") {
           srcStack.removeCard(cd);

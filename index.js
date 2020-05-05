@@ -10,6 +10,7 @@ var Player = require('./public/obj/player');
 var Room = require('./public/obj/room');
 var Stack = require('./public/obj/stack');
 var User = require('./public/obj/user');
+var Action = require('./public/obj/action');
 
 var _app = new Application("SERVER", io);
 

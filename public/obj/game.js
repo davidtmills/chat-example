@@ -734,14 +734,6 @@ var Game = function (application, pGameType, pGameState) {
     enumerable: false
   });
 
-  Object.defineProperty(this,"writeCard",{
-    value:function(target, cardId) {
-      var card = this.getCard(cardId);
-      $(target).append(_app.applyTemplate("card", card));
-    },
-    enumerable: false
-  });
-
   Object.defineProperty(this,"initPlayers",{
     value:function(pPlayers, pDesiredPlayers) {
       var player, roomUsers;
@@ -919,11 +911,12 @@ var Game = function (application, pGameType, pGameState) {
   Object.defineProperty(this,"updateCards",{
     value:function($sel, pCards, sort) {
       var game = this;
+      var out = [];
       var cards = pCards.map((v) => game.getCard(v));
-      $sel.html("");
       for (var c = 0; c < cards.length; c++) {
-        this.writeCard($sel, cards[c]);
+        out.push(_app.applyTemplate("card", cards[c]));
       }
+      $sel.html(out.join(""));
     },
     enumerable: false
   });
