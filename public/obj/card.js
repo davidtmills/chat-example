@@ -17,81 +17,6 @@ var Card = function (application, config) {
     while (_var.key.length < 7) { _var.key += "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ".substr(Math.random() * 36, 1); }
   }
 
-  /****** STATE AN UI MANAGEMENT ******/
-  Object.defineProperty(this,"toJSON",{
-    value:function() {
-      return this.state;
-    },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"state",{
-    get: function() {
-      var obj = { key:_var.key, face:_var.face, selected:_var.selected, stack:_var.stack, prevStack:_var.prevStack, lastUpdate:_var.lastUpdate };
-      return obj;
-    },
-    set: function(value) {
-      var isDirty = false;
-      //Now update any other property states
-      for (var k in value) {
-        if ((typeof _var[k] !== "undefined") && (_var[k] !== value[k])) {
-        //if ((typeof _var[k] !== "undefined") && (JSON.stringify(_var[k]) !== JSON.stringify(value[k])) ) {
-          isDirty = true;
-          _var[k] = value[k];
-        }
-      }
-      //make sure lastUpdate is updated if not specified in state
-      if ((isDirty) && (typeof value.lastUpdate !== "number")) {
-        _var.lastUpdate = Date.now();
-      }
-      this.refreshUI(true);
-    },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"lastUpdate",{
-    get: function() { return (typeof _var.lastUpdate == "number") ? _var.lastUpdate : 0 },
-    set: function(pushState) {
-      _var.lastUpdate = Date.now();
-      switch (typeof pushState) {
-        case "object":
-          Object.assign(_var, pushState);
-          if (_app.ready) {
-            _app.io.emit("state", "card", _var.key, pushState);
-          }
-          break;
-        case "number":
-          _var.lastUpdate = pushState;
-          break;
-        case "boolean":
-          if (pushState && _app.ready) {
-            _app.io.emit("state", "card", _var.key, this.state);
-          }
-          break;
-        default:
-          console.log("Invalid type (" + typeof pushState + ") lastUpdate", pushState);
-          break;
-      }
-    },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"lastRefresh",{
-    get: function() { return (typeof _var.lastRefresh == "number") ? _var.lastRefresh : 0 },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"refreshUI",{
-    value:function(forceRefresh) {
-      //greater than or equal to captures initial case of both being 0
-      if (_app.ready && ((forceRefresh === true) || (_var.lastUpdate >= _var.lastRefresh))) {
-        $(".card-item[card='" + _var.key + "']").toggleClass("sel", _var.selected).attr("card-face", _var.face);
-        _var.lastRefresh = Date.now();
-      }
-    },
-    enumerable: false
-  });
-
   Object.defineProperty(this,"key",{
     value: _var.key,
     writable: false,
@@ -329,6 +254,81 @@ var Card = function (application, config) {
 
   Object.defineProperty(this,"prevStack",{
     get: function() { return ((typeof _var.prevStack == "string") && (_var.prevStack != "")) ? _app.game.getStack(_var.prevStack) : ""; },
+    enumerable: false
+  });
+
+  /****** STATE AN UI MANAGEMENT ******/
+  Object.defineProperty(this,"toJSON",{
+    value:function() {
+      return this.state;
+    },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"state",{
+    get: function() {
+      var obj = { key:_var.key, face:_var.face, selected:_var.selected, stack:_var.stack, prevStack:_var.prevStack, lastUpdate:_var.lastUpdate };
+      return obj;
+    },
+    set: function(value) {
+      var isDirty = false;
+      //Now update any other property states
+      for (var k in value) {
+        if ((typeof _var[k] !== "undefined") && (_var[k] !== value[k])) {
+        //if ((typeof _var[k] !== "undefined") && (JSON.stringify(_var[k]) !== JSON.stringify(value[k])) ) {
+          isDirty = true;
+          _var[k] = value[k];
+        }
+      }
+      //make sure lastUpdate is updated if not specified in state
+      if ((isDirty) && (typeof value.lastUpdate !== "number")) {
+        _var.lastUpdate = Date.now();
+      }
+      this.refreshUI(true);
+    },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"lastUpdate",{
+    get: function() { return (typeof _var.lastUpdate == "number") ? _var.lastUpdate : 0 },
+    set: function(pushState) {
+      _var.lastUpdate = Date.now();
+      switch (typeof pushState) {
+        case "object":
+          Object.assign(_var, pushState);
+          if (_app.ready) {
+            _app.io.emit("state", "card", _var.key, pushState);
+          }
+          break;
+        case "number":
+          _var.lastUpdate = pushState;
+          break;
+        case "boolean":
+          if (pushState && _app.ready) {
+            _app.io.emit("state", "card", _var.key, this.state);
+          }
+          break;
+        default:
+          console.log("Invalid type (" + typeof pushState + ") lastUpdate", pushState);
+          break;
+      }
+    },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"lastRefresh",{
+    get: function() { return (typeof _var.lastRefresh == "number") ? _var.lastRefresh : 0 },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"refreshUI",{
+    value:function(forceRefresh) {
+      //greater than or equal to captures initial case of both being 0
+      if (_app.ready && ((forceRefresh === true) || (_var.lastUpdate >= _var.lastRefresh))) {
+        $(".card-item[card='" + _var.key + "']").toggleClass("sel", _var.selected).attr("card-face", _var.face);
+        _var.lastRefresh = Date.now();
+      }
+    },
     enumerable: false
   });
 
