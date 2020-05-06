@@ -208,7 +208,6 @@ var Game = function (application, pGameType, pGameState) {
       _var.lastRefresh = before;
       //each stack will call to refresh card state of each of its cards
       for (k in _stacks) {
-        console.log("refreshing stack", k, forceRefresh);
         _stacks[k].refreshUI(forceRefresh);
       }
     },
@@ -235,7 +234,6 @@ var Game = function (application, pGameType, pGameState) {
         if (_var.players.length > x) {
           seat = Object.assign(seat, _app.room.users[_var.players[x].key].state, _var.players[x]);
         } else if (userlist.length > 0) {
-          console.log(userlist);
           var u = userlist.pop();
           seat = Object.assign(seat, u.state);
         }
@@ -583,7 +581,7 @@ var Game = function (application, pGameType, pGameState) {
 
   Object.defineProperty(this,"getCard",{
     value:function(cardId) {
-      return (typeof cardId == "object") ? cardId : (typeof _cards[cardId] == "object") ? _cards[cardId] : null;
+      return (typeof cardId == "object") ? cardId : (typeof _cards[cardId] == "object") ? _cards[cardId] : undefined;
     },
     enumerable: false
   });
@@ -659,8 +657,6 @@ var Game = function (application, pGameType, pGameState) {
           }
         }
       }
-
-      console.log("initCards", cards);
 
     },
     enumerable: false
@@ -901,8 +897,6 @@ var Game = function (application, pGameType, pGameState) {
         stacks.deck.cardKeys = [].concat(availCards, stacks.deck.cardKeys);
       }
 
-      console.log("initStacks", _stacks);
-
     },
 
     enumerable: false
@@ -946,16 +940,13 @@ var Game = function (application, pGameType, pGameState) {
       this.initStacks(gameConfig.stacks);
 
       if (typeof pState === "object") {
-        console.log("APPLYING STATE", pState)
         _app.ready = true;
         this.state = pState;
-        console.log("RESULT", this.state);
         _var.ready = true;
         _var.lastUpdate = Date.now();
         this.gamearea();
         this.refreshUI(true);
       } else {
-        console.log("EMITTING", { gameType:_var.gameType, players:_var.players, state:this.state });
         _app.io.emit("initGame", { gameType:_var.gameType, players:_var.players, state:this.state });
       }
 
@@ -1095,14 +1086,6 @@ var Game = function (application, pGameType, pGameState) {
       //reset player's hand level properties
       //rebuilds cards collection and resets all stacks
       this.initStacks();
-
-      //clear playing area
-      //_app.applyTemplate("gamearea", _app, "#gamearea");
-
-      /* Set Game Title */
-      //$("body").attr("game", this.title)
-
-      //this.gamearea();
 
       //send game initialization event to all clients
       _app.io.emit("initGame", this.state);
