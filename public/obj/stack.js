@@ -24,15 +24,11 @@ var Stack = function (application, config) {
   _var.initUp = (typeof config.initUp == "number") ? config.initUp : 0;
   _var.initDown = (typeof config.initDown == "number") ? config.initDown : 0;
   _var.actions = (Array.isArray(config.actions)) ? config.actions : [];
-  _var.actions = _var.actions.map(function(v){ var a = new Action(_app, _this, v); console.log(a); })
-  if (!!_var.actions.length) { console.log(_var.actions[0]); }
   _var.cardAction = (typeof config.cardAction == "string") ? config.cardAction : "select";
-  _var.cardActions = (Array.isArray(config.cardActions)) ? config.cardActions.map((v) => new Action(_app, _this, v)) : [];
+  _var.cardActions = (Array.isArray(config.cardActions)) ? config.cardActions : [];
   _var.actionable = config["actionable"];
   _var.viewable = config["viewable"];
   _var.actors = (typeof config.actors == "object") ? config.actors : ((typeof config.actors == "string") && (config.actors != "")) ? [ config.actors ] : [];
-  //config.cardKeys can be inited using config.cardKeys[cardKey,..] or config.cards[cardKey|card]
-  //_var.cardKeys = ((typeof config.cardKeys === "object") && Array.isArray(config.cardKeys)) ? config.cardKeys : ((typeof config.cards === "object") && Array.isArray(config.cards)) ? config.cards.map((v) => ((typeof v == "object") && (typeof v.key === "string")) ? v.key : (typeof v === "string") ? v : "").filter((v)=>((typeof v === "string") && (typeof _app.game.cards(v) === "object"))) : [];
   _var.cardKeys = (Array.isArray(config["cardKeys"]))? config.cardKeys.map((v) => (typeof v === "object") ? v.key : v) : [];
 
   /****** STATE AN UI MANAGEMENT ******/
@@ -53,7 +49,6 @@ var Stack = function (application, config) {
       //Now update any other property states
       for (var k in value) {
         if ((typeof _var[k] !== "undefined") && (_var[k] !== value[k])) {
-        //if ((typeof _var[k] !== "undefined") && (JSON.stringify(_var[k]) !== JSON.stringify(value[k])) ) {
           isDirty = true;
           _var[k] = value[k];
         }
@@ -107,12 +102,10 @@ var Stack = function (application, config) {
       var cards = this.cards;
       //greater than or equal to captures initial case of both being 0
       if ((forceRefresh === true) || (_var.lastUpdate >= _var.lastRefresh)) {
-        console.log("rebuilding stack", _var.key, _var.cardKeys);
         _app.game.updateCards($("*[stack='" + this.key + "'] .pcards"), cards, _var["sort"]);
         _var.lastRefresh = Date.now();
       } else {
         //if not rebuilding the whole stack, then update card selection and faces
-        console.log("just refreshing cards", _var.key, _var.cardKeys);
         cards.forEach(function(v){
           v.refreshUI(true);
         })
@@ -327,11 +320,15 @@ var Stack = function (application, config) {
 
   Object.defineProperty(this,"actionable",{
     get: function() {
-      if (typeof _var.actionable != "undefined") {
-        return this.hasRole(_var.actionable);
+      var result = false;
+      if ((typeof _var.actionable === "string") && _var.actionable !== "") {
+        result = this.hasRole(_var.actionable);
+      } else if (typeof _var.actionable === "boolean") {
+        result = _var.actionable;
       } else {
-        return (this.shared) ? true : ((typeof this.owner == "object") && (this.owner.key == _app.user.key)) ? true : false;
+        result = (this.shared) ? true : (this.owner && this.owner.key && (this.owner.key == _app.user.key)) ? true : false;
       }
+      return result;
     },
     set: function(value) {
       if ((typeof value == "string") && (_var["actionable"] != value)) {
@@ -344,8 +341,16 @@ var Stack = function (application, config) {
 
   Object.defineProperty(this,"viewable",{
     get: function() {
-      //defaults to true is unspecified
-      return this.hasRole(_var["viewable"], true);
+      //defaults to true
+      var result = false;
+      if ((typeof _var.viewable === "string") && _var.viewable !== "") {
+        result = this.hasRole(_var.viewable);
+      } else if (typeof _var.viewable === "boolean") {
+        result = _var.viewable;
+      } else {
+        result = true;
+      }
+      return result;
     },
     set: function(value) {
       if ((typeof value == "string") && (_var["viewable"] != value)) {
@@ -450,7 +455,9 @@ var Stack = function (application, config) {
   });
 
   Object.defineProperty(this,"cardActions",{
-    get: function() { return (typeof _var.cardActions == "object") ? _var.cardActions : []; },
+    get: function() {
+      return (typeof _var.cardActions == "object") ? _var.cardActions : [];
+    },
     set: function(value) {
       if ((Array.isArray(value)) && (Array.isArray(_var["cardActions"])) && (value.join(",") !== _var.cardActions.join(","))) {
         _var.cardActions = value;
@@ -464,7 +471,6 @@ var Stack = function (application, config) {
     get: function() {
       var menu = this.actions;
       var ck = this.check;
-      //menu = menu.filter((v) => ck(v["filter"]));
       return _app.applyTemplate("actionlist", menu);
     },
     enumerable: false
@@ -472,10 +478,13 @@ var Stack = function (application, config) {
 
   Object.defineProperty(this,"cardMenu",{
     get: function() {
-      var menu = this.cardActions;
-      var ck = this.check;
-      //menu = menu.filter((v) => ck(v["filter"]));
-      return _app.applyTemplate("actionlist", menu);
+      var html = "";
+      var actions = this.cardActions;
+      var stack = this;
+      var action = new Action(_app, stack, {});
+      var menu = actions.filter((v) => true);
+      html = _app.applyTemplate("actionlist", menu);
+      return html;
     },
     enumerable: false
   });
@@ -507,10 +516,19 @@ var Stack = function (application, config) {
   });
 
   //only the selected cards in the stack
-  Object.defineProperty(this,"selection",{
+  Object.defineProperty(this,"selectedCards",{
     get: function() {
       var cards = this.cards;
       return cards.filter((v) => v.selected);
+    },
+    enumerable: false
+  });
+
+  //only the unselected cards in the stack
+  Object.defineProperty(this,"unselectedCards",{
+    get: function() {
+      var cards = this.cards;
+      return cards.filter((v) => !v.selected);
     },
     enumerable: false
   });

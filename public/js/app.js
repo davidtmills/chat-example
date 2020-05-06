@@ -168,7 +168,6 @@ $(function () {
             options[$(this).attr("prop-name")] =  (attrVal.indexOf("#") === 0) ? $(attrVal).val() : attrVal;
           })
           */
-          console.log(_app.room.gameType, players);
           _app.game.init({ gameType:_app.room.gameType, players:players});
         }
         break;
@@ -198,14 +197,22 @@ $(function () {
   $('body').on('click', '[stack-action]:not([stack-action=""])', function(event){
     var $el = $(this);
     var actionKey = $el.attr("stack-action");
+    var $card = $el.closest(".card-item[card]");
     var stackKey = $el.closest("[stack]").attr("stack");
     var stack = _app.game.stacks[stackKey];
-    var actions = stack.actions.filter((v) => (v.key === actionKey));
-    if (actions.length) {
-      console.log("executing", actions[0]);
-      var action = new Action(_app, stack, actions[0]);
-      console.log(action);
-      action.execute();
+    var card = ($card.length) ? _app.game.getCard($card.attr("card")) : undefined;
+    var actions = (!!card) ? stack.cardActions : stack.actions;
+    var action;
+    if (!!stack && !!actions) {
+      actions = actions.filter(function (v) { console.log(v, actionKey); return (v.key === actionKey); });
+      if (actions.length) {
+        console.log("executing", actions[0]);
+        var action = new Action(_app, (!!card) ? card : stack, actions[0]);
+        console.log(action);
+        action.execute();
+      }
+    } else {
+      console.log("ERROR no [stack] found", $el, stack);
     }
   });
 
@@ -224,10 +231,11 @@ $(function () {
   /*** Stack Dropdown Menus are Dynamically-loaded *****/
   $('body').on('show.bs.dropdown', '.stack-menu', function(event){
     var $button = $(event.relatedTarget) // Button that triggered the dropdown
+    var $card = $button.closest(".card-item[card]");
     var $stack = $button.closest(".stack[stack]");
     var $menu = $(this).find(".dropdown-menu");
     var stack = _app.game.getStack($stack.attr("stack"));
-    var actions = stack.actions;
+    var actions = ($card.length) ? stack.cardActions : stack.actions;
     //actions = actions.filter((v) => stack.check(v.filter) );
     _app.applyTemplate("actionlist", actions, $menu);
   })
@@ -276,9 +284,10 @@ $(function () {
     //refreshes stack html if stack has changed or just card face and selection for changed cards
     stack.refreshUI();
     //get the list of available card actions based on user and game context and the action's filter
-    var actions = stack.cardActions.filter((v) => stack.check(v.filter) );
+//    var actions = stack.cardActions.filter((v) => stack.check(v.filter) );
     //generate new html for menu options and replace current menu html
-    _app.applyTemplate("actionlist", actions, $menu);
+//    _app.applyTemplate("actionlist", actions, $menu);
+    $menu.html(stack.cardMenu);
   })
 
   $('body').on('show.bs.dropdown', '.dropdown:has(*[data-template])', function(event){
