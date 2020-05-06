@@ -140,7 +140,7 @@ var Room = function (application, config) {
         _var.waiting = value;
         this.lastUpdate = { waiting:value };
       } else {
-        console.log(value, _var.waiting);
+        //console.log(value, _var.waiting);
       }
     },
     enumerable: false
