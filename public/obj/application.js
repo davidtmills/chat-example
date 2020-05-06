@@ -326,6 +326,114 @@ var Application = function (appKey, socket) {
     enumerable: false
   });
 
+  Object.defineProperty(this,"prefix",{
+    /**
+     * Summary: Checks if the passed state object meets any or all of passed condition filters
+     **/
+    value: function (pSourceObject, pPrefix, pSkip, pExpand) {
+      var src = pSourceObject;
+      var obj = {};
+      var skip = (Array.isArray(pSkip)) ? pSkip : [];
+      var expand = ((typeof pExpand === "object") && (!Array.isArray(pExpand))) ? pExpand : {};
+      var prefix = (!!pPrefix) ? pPrefix : "";
+      var propNames = Object.getOwnPropertyNames(src);
+      if (propNames.length === 0) {
+        propNames = Object.keys(src);
+      }
+      Object.getOwnPropertyNames(src).forEach(function(k){
+        if (skip.indexOf(k) === -1) {
+          switch (typeof src[k]) {
+            case "symbol": break;
+            case "function": break;
+            case "undefined": break;
+            case "object":
+              if (Array.isArray(src[k])) {
+                //if an array return the length
+                obj[prefix + k] = src[k].length;
+              } else if (typeof expand[k] === "string") {
+                //otherwise expand if in expand hash
+                Object.assign(obj, _app.prefix(src[k], expand[k]));
+              }
+              //special case for owner add as true/false based on match of current user
+              if ((k === "owner") && (typeof src[k].key === "string")) {
+                obj["owner"] = (_app.user && _app.user.key && (src[k].key === _app.user.key));
+              }
+              break;
+            default:
+              obj[prefix + k] = src[k];
+          }
+        }
+      });
+
+      return obj;
+    },
+    enumerable:false
+  });
+
+  Object.defineProperty(this,"check",{
+    /**
+     * Summary: Checks if the passed state object meets any or all of passed condition filters
+     **/
+    value: function(pState, pConditionSets, pMatchAll) {
+
+      var k, filter;
+      var filters = (Array.isArray(pConditionSets)) ? pConditionSets : (typeof pConditionSets === "object") ? [pConditionSets] : [];
+      var chkItem = pState;
+      var matched = false;
+      var allMatched = true;
+      var matchAll = ((pMatchAll === true) || (filters.length === 0));
+      var filterIndex = 0;
+
+      //short circuit if any one filter matches completely
+      while((filterIndex < filters.length) && ((!matched) || (matchAll && allMatched))){
+        filter = filters[filterIndex];
+        matched = true; //default to matching
+
+        //check if item meets all conditions in filter
+        for (k in filter) {
+          var cmpVal = filter[k];
+          var itemVal = chkItem[k];
+          switch (typeof cmpVal) {
+            case "boolean":
+              matched = matched && (cmpVal === Boolean(itemVal));
+              break;
+            case "function":
+              matched = matched && (Boolean(cmpVal(itemVal)));
+              break;
+            case "object":
+              if (Array.isArray(cmpVal) && (cmpVal.length === 2) && (typeof itemVal === "number")) {
+                matched = ((itemVal >= cmpVal[0]) && (itemVal <= cmpVal[1]));
+              } else {
+                console.log("Invalid Object", cmpVal, itemVal);
+              }
+              break;
+            case "number":
+              if (typeof chkItem[k] === "number") {
+                matched = (filter[k] < 0) ? (chkItem[k] <= (-1 * filter[k])) : (chkItem[k] === filter[k]);
+              } else {
+                console.log("NaN", cmpVal, itemVal);
+              }
+              break;
+            default:
+              matched = matched && (filter[k] === chkItem[k]);
+              break;
+          }
+        } //end for k in filter
+
+        allMatched = allMatched && matched;
+
+        //increment index to check next filter
+        filterIndex++;
+
+      } //end while
+
+      //return result based on whether we were matching all or any filter conditions
+      return (matchAll) ? allMatched : matched;
+
+    },
+    enumerable: false
+  });
+
   Object.defineProperty(this,"getObject",{
     //resolves an object based on type and key
     //works on both client and server
@@ -515,9 +623,8 @@ var Application = function (appKey, socket) {
         ]},
         { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initDown:5, sort:"suit", cardAction:"menu",
           cardActions:[
-            { key:"discard",
-            label:"Discard", action:"give", actionFilter:{ selectedCards:1, cards:6, player_dealer:true }, stackFilter:{ group:"deck" }, cardFace:"down" },
-            { key:"play", label:"Play", action:"give", actionFilter:{ selectedCards:1, cards:[1,5] }, stackFilter:{ group:"shared" }, cardFace:"down" }
+            { key:"discard", label:"Discard", action:"give", actionFilter:{ selectedCards:1, cards:6, player_dealer:true }, stackFilter:{ group:"deck" }, cardFace:"down" },
+            { key:"play", label:"Play", action:"give", actionFilter:{ selectedCards:1, cards:-5 }, stackFilter:{ group:"shared" }, cardFace:"down" }
           ]
         },
         { key:"tricks", label:"Tricks", shared:false, viewable:true, actionable:"noone", layout:"fan", face:"down", cardAction:"none" }

@@ -469,9 +469,14 @@ var Stack = function (application, config) {
 
   Object.defineProperty(this,"stackMenu",{
     get: function() {
-      var menu = this.actions;
-      var ck = this.check;
-      return _app.applyTemplate("actionlist", menu);
+      var html = "";
+      var stack = this;
+      var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
+      var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
+      var obj = Object.assign({ }, userData, playerData, _app.prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
+      var menu = stack.actions.filter(v => _app.check(obj, v["actionFilter"]));
+      html = _app.applyTemplate("actionlist", menu);
+      return html;
     },
     enumerable: false
   });
@@ -479,10 +484,11 @@ var Stack = function (application, config) {
   Object.defineProperty(this,"cardMenu",{
     get: function() {
       var html = "";
-      var actions = this.cardActions;
       var stack = this;
-      var action = new Action(_app, stack, {});
-      var menu = actions.filter((v) => true);
+      var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
+      var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
+      var obj = Object.assign({ }, userData, playerData, _app.prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
+      var menu = stack.cardActions.filter(v => _app.check(obj, v["actionFilter"]));
       html = _app.applyTemplate("actionlist", menu);
       return html;
     },

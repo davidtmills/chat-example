@@ -26,9 +26,7 @@ $(function () {
     var stackId = $card.closest("[stack]").attr("stack");
     var card = _app.game.getCard(cardId);
     var stack = _app.game.getStack(stackId);
-    //set card.selected to opposite of elements current state
-    //card.selected = !$card.hasClass("sel");
-    var cardAction = stack["cardAction"] | "select";
+    var cardAction = (stack && stack.cardAction) ? stack.cardAction : "select";
     console.log("Card Action", cardAction, card, stack);
     switch (stack["cardAction"]) {
       case "none":

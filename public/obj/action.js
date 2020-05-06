@@ -118,49 +118,6 @@ function Action (application, pContext, pConfig) {
     enumerable: false
   });
 
-  Object.defineProperty(this,"passes",{
-    /**
-     * Summary: Checks if the passed state object meets any or all of passed condition filters
-     **/
-    value: function(pState, pConditionSets, pMatchAll) {
-
-      var k, filter;
-      var filters = (Array.isArray(pConditionSets)) ? pConditionSets : (typeof pConditionSets === "object") ? [pConditionSets] : [];
-      var chkItem = pState;
-      var matched = false;
-      var allMatched = true;
-      var matchAll = (pMatchAll === true);
-      var filterIndex = 0;
-
-      //short circuit if any one filter matches completely
-      while((filterIndex < filters.length) && ((!matched) || (matchAll && allMatched))){
-        filter = filters[filterIndex];
-        matched = true; //default to matching
-
-        //check if card meets all conditions in filter
-        for (k in filter) {
-          switch (typeof filter[k]) {
-            case "boolean": matched = matched && (filter[k] === Boolean(chkItem[k])); break;
-            case "function": matched = matched && (Boolean(filter[k](chkItem[k]))); break;
-            case "object": matched = matched && ((typeof chkItem === "number") && Array.isArray(filter[k]) && (filter[k].length == 2) && (typeof filter[k][0] === "number") && (typeof filter[k][1] === "number") && (chkItem >= filter[k][0]) && (chkItem <= filter[k][1])); break;
-            default: matched = matched && (filter[k] === chkItem[k]); break;
-          }
-        } //end for k in filter
-
-        allMatched = allMatched && matched;
-
-        //increment index to check next filter
-        filterIndex++;
-
-      } //end while
-
-      //return result based on whether we were matching all or any filter conditions
-      return (matchAll) ? allMatched : matched;
-
-    },
-    enumerable: false
-  });
-
   Object.defineProperty(this,"actionable",{
     get: function() {
       /**
@@ -175,12 +132,12 @@ function Action (application, pContext, pConfig) {
        *    owner_bank, owner_pot, owner_bet, owner_bid, owner_tricks
        *    cardCount, selCount, unselCount, upCount, downCount
        **/
-       var userData = _prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
-       var playerData = _prefix(_app.game.getPlayer(_app.user.key), "player_");
+       var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
+       var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
        var stack = _ctx;
-       var obj = Object.assign({ }, userData, playerData, _prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
-       var result = this.passes(obj, _actionFilters);
-       console.log(result, stack, obj, _actionFilters)
+       var obj = Object.assign({ }, userData, playerData, _app.prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
+       var result = _app.check(obj, _actionFilters);
+       console.log("ACTIONABLE", result, stack, obj, _actionFilters)
        return result;
     },
 
@@ -203,15 +160,14 @@ function Action (application, pContext, pConfig) {
       //if Card single-item array, otherwise create array from _ctx.cardKeys or _ctx.cards property
       var cards = (_ctx && _ctx.stack) ? [_ctx] : (_ctx && _ctx.cardKeys && Array.isArray(_ctx.cardKeys)) ? _ctx.cardKeys : (_ctx && _ctx.cards && Array.isArray(_ctx.cards)) ? _ctx.cards : (_ctx && typeof _ctx.cards === "object") ? Object.keys(_ctx.cards) : [];
 
-      var check = this.passes;
       var filters = _cardFilters
       var matches = [];
       cards.forEach((v) => {
         var card = _app.game.getCard(v);
-        var userData = _prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
-        var playerData = _prefix(_app.game.getPlayer(_app.user.key), "player_");
-        var obj = Object.assign({ }, userData, playerData, _prefix(card, "", [], { stack:"stack_", prevStack:"prevStack_" }) );
-        if (check(obj, filters)) {
+        var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
+        var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
+        var obj = Object.assign({ }, userData, playerData, _app.prefix(card, "", [], { stack:"stack_", prevStack:"prevStack_" }) );
+        if (_app.check(obj, filters)) {
           matches.push(card);
         }
       });
@@ -232,13 +188,12 @@ function Action (application, pContext, pConfig) {
        *    cardCount, selCount, unselCount, upCount, downCount.
        **/
       var matches = [];
-      var userData = _prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
-      var playerData = _prefix(_app.game.getPlayer(_app.user.key), "player_");
-      var check = this.passes;
+      var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
+      var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
       Object.values(_app.game.stacks).forEach(function(v){
         var stack = v;
-        var obj = Object.assign({ }, userData, playerData, _prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
-        if (check(obj, _stackFilters)) {
+        var obj = Object.assign({ }, userData, playerData, _app.prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
+        if (_app.check(obj, _stackFilters)) {
           matches.push(stack);
         }
       });
@@ -349,44 +304,6 @@ function Action (application, pContext, pConfig) {
     return sel;
   }
 
-  var _prefix = function (pSourceObject, pPrefix, pSkip, pExpand) {
-    var src = pSourceObject;
-    var obj = {};
-    var skip = (Array.isArray(pSkip)) ? pSkip : [];
-    var expand = ((typeof pExpand === "object") && (!Array.isArray(pExpand))) ? pExpand : {};
-    var prefix = (!!pPrefix) ? pPrefix : "";
-    var propNames = Object.getOwnPropertyNames(src);
-    if (propNames.length === 0) {
-      propNames = Object.keys(src);
-    }
-    Object.getOwnPropertyNames(src).forEach(function(k){
-      if (skip.indexOf(k) === -1) {
-        switch (typeof src[k]) {
-          case "symbol": break;
-          case "function": break;
-          case "undefined": break;
-          case "object":
-            if (Array.isArray(src[k])) {
-              //if an array return the length
-              obj[prefix + k] = src[k].length;
-            } else if (typeof expand[k] === "string") {
-              //otherwise expand if in expand hash
-              Object.assign(obj, _prefix(src[k], expand[k]));
-            }
-            //special case for owner add as true/false based on match of current user
-            if ((k === "owner") && (typeof src[k].key === "string")) {
-              obj["owner"] = (_app.user && _app.user.key && (src[k].key === _app.user.key));
-            }
-            break;
-          default:
-            obj[prefix + k] = src[k];
-        }
-      }
-    });
-
-    return obj;
-  }
-
   var _parseActionFilter = function (pInput) {
     var obj = [];
     if (Array.isArray(pInput)) {
@@ -427,7 +344,7 @@ function Action (application, pContext, pConfig) {
         }
       }
     }
-
+    console.log("_parseActionFilter", pInput, obj)
     return obj;
   }
 
