@@ -59,7 +59,7 @@
     <script id="list-template" type="text/x-handlebars-template">{{#with this.ctx}}{{#each this}}{{#if label}}<{{#if tag}}{{tag}}{{else}}button type="button"{{/if}} {{#if css}}class="{{css}}"{{/if}} {{#each attr}} {{@key}}="{{{this}}}"{{/each}}>{{label}}</{{#if tag}}{{tag}}{{else}}button{{/if}}>{{else}}<div class="dropdown-divider"></div>{{/if}}{{/each}}{{/with}}</script>
 
 <!-- ###### ACTION LIST TEMPLATE ###### -->
-    <script id="actionlist-template" type="text/x-handlebars-template">{{#with this.ctx}}{{#each this}}{{#if label}}<button type="button" class="dropdown-item" {{#if context}}{{context}}{{else}}stack{{/if}}-action="{{key}}"{{#each attr}} {{@key}}="{{this}}"{{/each}}>{{label}}</button>{{else}}<div class="dropdown-divider"></div>{{/if}}{{/each}}{{/with}}</script>
+    <script id="actionlist-template" type="text/x-handlebars-template">{{#with this.ctx}}{{#each this}}{{#if label}}<button type="button" class="dropdown-item" {{#if context}}{{context}}{{else}}stack{{/if}}-action="{{key}}"{{#each attr}} {{@key}}="{{this}}"{{/each}}>{{{label}}}</button>{{else}}<div class="dropdown-divider"></div>{{/if}}{{/each}}{{/with}}</script>
 
 <!-- ###### STACK TEMPLATE ###### -->
     <script id="stack-template" type="text/x-handlebars-template">{{#with this.ctx}}
@@ -289,10 +289,10 @@
                 <div class="dropdown border rounded">
                   <button id="dlgGameStart_dealer" data-placeholder="Player 1" dealer-key="{{game.dealer.key}}" class="btn my-0 text-left down-arrow w-100" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{game.dealer.name}}</button>
                   <div class="dropdown-menu w-100" aria-labelledby="player-{{@index}}Button">
-                    <button data-action="select" data-target="#dlgGameStart_dealer" data-args="html|player-key:dealer-key" player-key="" player-name="" data-placeholder="no selection" type="button" class="dropdown-item"></button>
                     {{#each @root.app.room.users}}
                     <button data-action="select" data-target="#dlgGameStart_dealer" data-args="html|player-key:dealer-key" player-key="{{key}}" player-name="{{name}}" type="button" class="dropdown-item">{{name}}</button>
                     {{/each}}
+                    <button data-action="select" data-target="#dlgGameStart_dealer" data-args="html|player-key:dealer-key" player-key="" player-name="" data-placeholder="no selection" type="button" class="dropdown-item"></button>
                   </div>
                 </div>
               </div>
@@ -321,10 +321,10 @@
                   <div class="flex-grow-1">
                     <button data-prop="player" id="dlgGameStart_player_{{@index}}" data-placeholder="select a player &hellip;" player-key="{{key}}" player-name="{{name}}" class="btn my-0 text-left w-100 down-arrow" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{name}}</button>
                     <div class="dropdown-menu" style="min-width:11rem;" aria-labelledby="player-{{@index}}Button">
-                      <button data-action="select" data-target="#dlgGameStart_player_{{@index}}" data-args="html|player-key|player-name" data-placeholder="no selection" type="button" class="dropdown-item" player-key="" player-name=""></button>
                       {{#each @root.app.room.users}}
                       <button data-action="select" data-target="#dlgGameStart_player_{{../index}}" data-args="html|player-key|player-name" player-key="{{key}}" player-name="{{name}}" type="button" class="dropdown-item">{{name}}</button>
                       {{/each}}
+                      <button data-action="select" data-target="#dlgGameStart_player_{{@index}}" data-args="html|player-key|player-name" data-placeholder="no selection" type="button" class="dropdown-item" player-key="" player-name=""></button>
                     </div>
                   </div>
                 </div>
@@ -426,8 +426,8 @@
     <script src="https://cdn.socket.io/socket.io-1.2.0.js"></script>
     <script src="/js/app.js"></script>
      <div id="image-cache" style="position:absolute; top:-1px; left:-1px; height:1px !important;width:1px !important;overflow:hidden !important;">
-       <img src="/img/quiddler.png" onload="console.log('Loaded: ' + this.src)"/>
-       <img src="/img/cards.png" onload="console.log('Loaded: ' + this.src)"/>
+       <img src="/img/quiddler.png"/>
+       <img src="/img/cards.png"/>
      </div>
   </body>
 </html>
