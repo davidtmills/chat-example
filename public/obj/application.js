@@ -404,7 +404,7 @@ var Application = function (appKey, socket) {
 
         _app.io.on('initRoom', function(pConfig){
           _app.room = (typeof pConfig === "object") ? new Room(_app, pConfig) : undefined;
-          console.log("initRoom", _app.room);
+          //console.log("initRoom", _app.room);
         });
 
         _app.io.on('showDialog', function(pId){
@@ -418,7 +418,7 @@ var Application = function (appKey, socket) {
           //update state of local object if one exists
           if (typeof obj === "object") {
             obj.state = pData;
-            console.log("io.on.state", pClass, pKey, pData);
+            //console.log("io.on.state", pClass, pKey, pData);
           } else {
             console.log("unsupported object", pClass, pKey, pData)
           }
@@ -429,9 +429,8 @@ var Application = function (appKey, socket) {
         socket.on('addUser', function(pConfig){
           var room = _app.room;
           var userData = pConfig;
-          console.log(room, userData)
+          //console.log(room, userData)
           if ((typeof room === "object") && (typeof userData.key === "string") && (userData.key !== "")) {
-            console.log("TRYIN")
             //use room property to just update the LOCAL copy
             room.addUser(userData, true)
           }
@@ -507,28 +506,21 @@ var Application = function (appKey, socket) {
         {key:"leave_game", label:"Leave Game", fn:"leave", obj:"game", options:{ }}
       ],
       stacks:[
-        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:false, actors:"none", layout:"stack", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[]},
-        { key:"shared", label:"Table", shared:true, viewable:true, actionable:true, actors:"everyone", layout:"horiz", face:"up", initUp:1, initDown:0, cardAction:"none", actions:[
-          { key:"pick_up", label:"Pick Up", menu:"stack", fn:"draw", obj:"stack", cards:"stack", groups:["shared"], filter:{ dealer:true, maxCards:1, minSel:0 }, options:{ next_action:"end_bid" } },
-          { key:"turn_down", label:"Turn Down", menu:"stack", fn:"deal", obj:"stack", cards:"stack", groups:["discard"], filter:{ dealer:true, bidder:true, maxCards:1, minSel:0 }, options:{ next_action:"end_bid" } },
-          { key:"claim", label:"Claim", menu:"stack", fn:"claim", obj:"stack", cards:"stack", groups:["discard"], filter:{ minCards:4, minSel:0 }, options:{ } }
+        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"noone", layout:"stack", face:"down", cardAction:"none"},
+        { key:"shared", label:"Table", shared:true, viewable:true, actionable:"everyone", layout:"fan", face:"up", initUp:1, cardAction:"none", actions:[
+          { key:"orderUp", label:"Order up", action:"give", actionFilter:{ upCards:1, cards:1, player_dealer:false }, stackFilter:{ group:"hand", owner_dealer:true }, cardFilter:{ face:'up' }, cardFace:"down" },
+          { key:"pickUp", label:"Pick up", action:"give", actionFilter:{ upCards:1, cards:1, player_dealer:true }, stackFilter:{ group:"hand", owner_dealer:true }, cardFilter:{ face:'up' }, cardFace:"down" },
+          { key:"turnDown", label:"Turn down", action:"flip", actionFilter:{ upCards:1, cards:1, player_dealer:true }, cardFace:"down" },
+          { key:"claim", label:"Claim", action:"give", actionFilter:{ upCards:4, cards:4 }, stackFilter:{ group:"tricks", owner:true }, cardFace:"down" }
         ]},
-        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", actors:"owner", layout:"fan", face:"down", initUp:0, initDown:5, sort:"suit", cardAction:"menu",
-          actions:[
-            {key:"bid_turndown", label:"Turn Down", fn:"bid", obj:"game", filter:{ mode:"bid", maxBids:0, bidder:true, dealer:true }, options:{ action:"turndown", stack:"shared", card:0 }},
-            {key:"bid_pickup", label:"Pick It Up", fn:"bid", obj:"game", filter:{ mode:"bid", maxBids:0, bidder:true }, options:{ action:"pickup", stack:"shared", card:0, to_player:"dealer", to_stack:"hand" }},
-            {key:"bid_pass", label:"Pass", fn:"bid", obj:"game", filter:{ mode:"bid", bidder:true }, options:{ action:"pass" }},
-            {key:"bid_spades", label:"Spades", fn:"bid", obj:"game", filter:{ mode:"bid", minBids:1, bidder:true }, options:{ action:"set", bid:"Spades" }},
-            {key:"bid_diamonds", label:"Diamonds", fn:"bid", obj:"game", filter:{ mode:"bid", minBids:1, bidder:true }, options:{ action:"set", bid:"Diamonds" }},
-            {key:"bid_clubs", label:"Clubs", fn:"bid", obj:"game", filter:{ mode:"bid", minBids:1, bidder:true }, options:{ action:"set", bid:"Clubs" }},
-            {key:"bid_spades", label:"Spades", fn:"bid", obj:"game", filter:{ mode:"bid", minBids:1, bidder:true }, options:{ action:"set", bid:"Hearts" }}
-          ],
+        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initDown:5, sort:"suit", cardAction:"menu",
           cardActions:[
-            {key:"play", label:"Play", fn:"deal", obj:"stack", cards:"selection", groups:["shared"], filter:{ mode:"play", maxSel:1, minSel:1, maxCards:5 }, options:{ next_action:"nextPlayer" }},
-            {key:"discard", label:"Discard", fn:"deal", obj:"stack", cards:"selection", groups:["deck"], filter:{ mode:"bid", maxSel:1, minSel:1, minCards:5 }, options:{ next_action:"nextPlayer" }}
+            { key:"discard",
+            label:"Discard", action:"give", actionFilter:{ selectedCards:1, cards:6, player_dealer:true }, stackFilter:{ group:"deck" }, cardFace:"down" },
+            { key:"play", label:"Play", action:"give", actionFilter:{ selectedCards:1, cards:[1,5] }, stackFilter:{ group:"shared" }, cardFace:"down" }
           ]
         },
-        { key:"tricks", label:"Tricks", shared:false, viewable:true, actionable:false, actors:"none", layout:"fan", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[] }
+        { key:"tricks", label:"Tricks", shared:false, viewable:true, actionable:"noone", layout:"fan", face:"down", cardAction:"none" }
       ]
     },
     quiddler:{
@@ -538,18 +530,31 @@ var Application = function (appKey, socket) {
       maxPlayers:8,
       decks:{ quiddler:1 },
       css:".card-item::after { display:none !important; } .card-face {background-image:url(/img/quiddler.png) !important; border-style:none !important; } .card-face::after { display:none !important; }",
-      display:[ ["*[area='p1']", "hand", "owner" ], ["*[area='t1']", "deck", "everyone" ], ["*[area='t1']", "discard", "everyone" ], ["*[area='t2']", "words", "everyone" ], ["*[area='t2']", "unused", "everyone" ] ],
+      display:[ ["*[area='p1']", "hand", "owner" ], ["*[area='t1']", "deck", "everyone" ], ["*[area='t1']", "discard", "everyone" ], ["*[area='t2']", "words", "everyone" ], ["*[area='t3']", "unused", "everyone" ] ],
       chat:[],
       stacks:[
-        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"everyone", actors:"everyone", layout:"stack", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[] },
-        { key:"discard", label:"Discard", shared:true, viewable:true, actionable:"everyone", actors:"everyone", layout:"stack", face:"up", initUp:1, initDown:0, cardAction:"none", actions:[] },
-        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", actors:"owner", layout:"fan", face:"down", initUp:0, initDown:10, cardAction:"first", actions:[
-          {key:"discard", label:"Discard", filter:{ actor:"dealer", maxSel:1, minSel:0 }, action:"turn_down", extend:{ mode:"all", next_action:"end_bid" }},
-          {key:"play", label:"Play Word", filter:{ actor:"owner", minSel:2 }, action:"turn_down", extend:{ mode:"all", next_action:"end_bid" }},
-          {key:"unplayed", label:"Play Unused", filter:{ minCards:0, minSel:1 }, action:"claim", extend:{ }}
+        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"everyone", layout:"stack", face:"down", cardAction:"menu", actions:[
+          { key:"deal3", label:"Deal 3", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:3 },
+          { key:"deal4", label:"Deal 4", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:4 },
+          { key:"deal5", label:"Deal 5", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:5 },
+          { key:"deal6", label:"Deal 6", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:6 },
+          { key:"deal7", label:"Deal 7", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:7 },
+          { key:"deal8", label:"Deal 8", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:8 },
+          { key:"deal9", label:"Deal 9", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:9 },
+          { key:"deal10", label:"Deal 10", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:10 },
+        ], cardActions:[
+          { key:"draw", label:"Draw", action:"give", stackFilter:{ group:"hand", owner:true }, cardFace:"down" },
         ] },
-        { key:"words", label:"Words", shared:false, viewable:true, actionable:"owner", actors:"owner", layout:"fan", face:"up", initUp:0, initDown:0, cardAction:"none", actions:[] },
-        { key:"unused", label:"Unused", shared:false, viewable:true, actionable:"owner", actors:"owner", layout:"fan", face:"up", initUp:0, initDown:0, cardAction:"none", actions:[] }
+        { key:"discard", label:"Discard", shared:true, viewable:true, actionable:"everyone", layout:"stack", face:"up", initUp:1, cardAction:"menu", cardActions:[
+          { key:"pickUp", label:"Pick up", action:"give", stackFilter:{ group:"hand", owner:true }, cardFace:"down" }
+        ] },
+        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initDown:0, cardAction:"first", actions:[
+          { key:"discard", label:"Discard", action:"give", actionFilter:{ selectedCards:1, owner:true }, stackFilter:{ group:"discard" }, cardFilter:{ selected:true }, cardFace:"up" },
+          { key:"play", label:"Play word", action:"give", actionFilter:{ selectedCards:[2,10], owner:true }, stackFilter:{ group:"words", owner:true }, cardFace:"up" },
+          { key:"unplayed", label:"No more words", action:"give", actionFilter:{ owner:true }, stackFilter:{ group:"unused", owner:true }, cardFace:"up" }
+        ] },
+        { key:"words", label:"Words", shared:false, viewable:true, actionable:"noone", layout:"fan", face:"up", cardAction:"none" },
+        { key:"unused", label:"Unused", shared:false, viewable:true, actionable:"noone", layout:"fan", face:"up", cardAction:"none" }
       ]
     },
     holdem:{
@@ -558,17 +563,23 @@ var Application = function (appKey, socket) {
       minPlayers:2,
       maxPlayers:8,
       decks:{ full:1 },
-      display:[ ["*[area='p1']", "hand", "owner" ], ["*[area='t1']", "deck", "everyone" ],["*[area='t1']", "shared", "everyone" ], ["*[area='t2']", "hand", "everyone" ] ],
+      display:[ ["*[area='p1']", "hand", "owner" ], ["*[area='t1']", "shared", "everyone" ], ["*[area='t2']", "hand", "everyone" ] ],
       chat:["Fold","Check","Call","Raise","I'm all in!"],
       stacks:[
-        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", actors:"dealer", layout:"stack-fan", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[
-          { key:"deal", label:"Deal", action:"deal", stackFilter:"hand", cardFace:"down", numCards:2 },
-          { key:"flop", label:"Flop", action:"deal", stackFilter:"shared", cardFace:"up", numCards:3 },
-          { key:"turn", label:"Turn", action:"deal", stackFilter:"shared", cardFace:"up" },
-          { key:"river", label:"River", action:"deal", stackFilter:"shared", cardFace:"up" }
+        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"noone", layout:"stack", face:"down", cardAction:"none", actions:[] },
+        { key:"shared", label:"Community", shared:true, viewable:true, actionable:"dealer", layout:"fan", face:"down", cardAction:"none", actions:[
+          { key:"flop", label:"Flop", action:"deal", stackFilter:{ group:"shared" }, cardFace:"up", numCards:3 },
+          { key:"turn", label:"Turn", action:"deal", stackFilter:{ group:"shared" }, cardFace:"up" },
+          { key:"river", label:"River", action:"deal", stackFilter:{ group:"shared" }, cardFace:"up" },
+          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:[{ player_dealer:true }], stackFilter:{ group:"hand" }, cardFace:'up' }
         ] },
-        { key:"shared", label:"Community", shared:true, viewable:true, actionable:"everyone", actors:"dealer", layout:"flop", face:"down", initUp:0, initDown:0, cardAction:"flip", actions:[] },
-        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", actors:"owner", layout:"fan", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[] }
+        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initDown:2, cardAction:"none", actions:[
+          { key:"fold", label:"Fold", action:"fold", actionFilter:[] },
+          { key:"bet", label:"Bet &hellip;", action:"betDialog" },
+          { key:"check", label:"Check", action:"betMin", actionFilter:{ callAmount:false, betAmount:false } },
+          { key:"call", label:"Call", action:"betMin", actionFilter:[{ callAmount:true  }, { betAmount:true }] },
+          { key:"allIn", label:"All In!", action:"betMax", actionFilter:[{ betAmount:true }] }
+        ] }
       ]
     },
     cross:{
@@ -580,13 +591,17 @@ var Application = function (appKey, socket) {
       display:[ ["*[area='p1']", "hand", "owner" ], ["*[area='t1']", "shared", "everyone" ], ["*[area='t2']", "hand", "everyone" ] ],
       chat:["Fold","Check","Call","Raise","I'm all in!"],
       stacks:[
-        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", actors:"dealer", layout:"stack", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[] },
-        { key:"shared", label:"Community", shared:true, viewable:true, actionable:"everyone", actors:"dealer", layout:"cross", face:"down", initUp:0, initDown:5, cardAction:"flip", actions:[] },
-        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", actors:"owner", layout:"fan", face:"down", initUp:0, initDown:2, cardAction:"none", actions:[
-          {key:"call", label:"Check or Call", filter:{ actor:"dealer", maxCards:1, minSel:0 }, action:"turn_down", extend:{ mode:"all", next_action:"end_bid" }},
-          {key:"raise", label:"Bet or Raise", filter:{ actor:"dealer", maxCards:1, minSel:0 }, action:"turn_down", extend:{ mode:"all", next_action:"end_bid" }},
-          {key:"fold", label:"Fold Hand", filter:{ actor:"dealer", maxCards:1, minSel:0 }, action:"pick_up", extend:{ next_action:"end_bid" }},
-          {key:"flip", label:"Reveal Hand", filter:{ minCards:4, minSel:0 }, action:"claim", extend:{ }}
+        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", layout:"stack", face:"down", cardAction:"none", actions:[
+          { key:"deal", label:"Deal", action:"give", stackFilter:{ group:"shared" }, cardFace:"down", cards:5 },
+          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:[{ player_dealer:true }], stackFilter:{ group:"hand" }, cardFace:'up' }
+        ] },
+        { key:"shared", label:"Community", shared:true, viewable:true, actionable:"everyone", layout:"cross", face:"down", initDown:5, cardAction:"flip" },
+        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initDown:2, cardAction:"none", actions:[
+          { key:"fold", label:"Fold", action:"fold", actionFilter:[] },
+          { key:"bet", label:"Bet &hellip;", action:"betDialog" },
+          { key:"check", label:"Check", action:"betMin", actionFilter:{ callAmount:false, betAmount:false } },
+          { key:"call", label:"Call", action:"betMin", actionFilter:[{ callAmount:true  }, { betAmount:true }] },
+          { key:"allIn", label:"All In!", action:"betMax", actionFilter:[{ betAmount:true }] }
         ] }
       ]
     },
@@ -600,9 +615,19 @@ var Application = function (appKey, socket) {
       display:[ ["*[area='p1']", "hand", "owner" ], ["*[area='t1']", "deck", "dealer" ], ["*[area='t2']", "hand", "everyone" ] ],
       chat:["Fold","Check","Call","Raise"],
       stacks:[
-        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", actors:"dealer", layout:"stack", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[] },
-        { key:"discard", label:"Discard", shared:true, viewable:true, actionable:"dealer", actors:"dealer", layout:"stack", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[] },
-        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", actors:"owner", layout:"fan", face:"down", initUp:0, initDown:5, sort:"rank", cardAction:"select", actions:[] }
+        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", layout:"stack", face:"down", cardAction:"none", actions:[
+          { key:"deal", label:"Deal", action:"give", actionFilter:{ player_dealer:true }, stackFilter:{ group:"shared" }, cardFace:"down", cards:5 },
+          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:'up' }
+        ] },
+        { key:"discard", label:"Discard", shared:true, viewable:true, actionable:"dealer", layout:"stack", face:"down", cardAction:"none" },
+        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initDown:5, sort:"rank", cardAction:"select", actions:[
+          { key:"draw", label:"Draw", action:"replace", actionFilter:{ numSelect:[1,4],  bidCount:1 }, stackFilter:{ group:"deck" }, cardFilter:{ selected:true } },
+          { key:"fold", label:"Fold", action:"fold", actionFilter:[] },
+          { key:"bet", label:"Bet &hellip;", action:"betDialog" },
+          { key:"check", label:"Check", action:"betMin", actionFilter:{ callAmount:false, betAmount:false } },
+          { key:"call", label:"Call", action:"betMin", actionFilter:[{ callAmount:true  }, { betAmount:true }] },
+          { key:"allIn", label:"All In!", action:"betMax", actionFilter:[{ betAmount:true }] }
+        ] }
       ]
     },
     stud7:{
@@ -614,8 +639,17 @@ var Application = function (appKey, socket) {
       display:[ ["*[area='p1']", "hand", "owner" ], ["*[area='t1']", "deck", "dealer" ], ["*[area='t2']", "hand", "everyone" ] ],
       chat:["Fold","Check","Call","Raise"],
       stacks:[
-        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", actors:"dealer", layout:"stack", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[] },
-        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", actors:"owner", layout:"fan", face:"down", initUp:3, initDown:2, cardAction:"select", actions:[] }
+        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", layout:"stack", face:"down", cardAction:"none", actions:[
+          { key:"deal", label:"Deal", action:"give", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"up", cards:1 },
+          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:'up' }
+        ] },
+        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initUp:3, initDown:2, cardAction:"select", actions:[
+          { key:"fold", label:"Fold", action:"fold", actionFilter:[] },
+          { key:"bet", label:"Bet &hellip;", action:"betDialog" },
+          { key:"check", label:"Check", action:"betMin", actionFilter:{ callAmount:false, betAmount:false } },
+          { key:"call", label:"Call", action:"betMin", actionFilter:[{ callAmount:true  }, { betAmount:true }] },
+          { key:"allIn", label:"All In!", action:"betMax", actionFilter:[{ betAmount:true }] }
+        ] }
       ]
     },
     sweat:{
@@ -623,13 +657,19 @@ var Application = function (appKey, socket) {
       title:"7-card Sweat",
       minPlayers:2,
       maxPlayers:7,
-      decks:{ full:1, jokers:2 },
-      display:[ ["*[area='p1']", "hand", "owner" ], ["*[area='t1']", "shared", "dealer" ], ["*[area='t2']", "hand", "everyone" ] ],
+      decks:{ full:1 },
+      display:[ ["*[area='t1']", "shared", "dealer" ], ["*[area='t2']", "hand", "everyone" ] ],
       chat:["Beat that!","Fold","Check","Call","Raise"],
       stacks:[
-        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", actors:"dealer", layout:"stack", face:"down", initUp:0, initDown:0, cardAction:"none", actions:[] },
-        { key:"shared", label:"Card to Beat", shared:true, viewable:true, actionable:false, actors:"none", layout:"stack", face:"up", initUp:1, initDown:0, cardAction:"none", actions:[] },
-        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", actors:"owner", layout:"stack-fan", face:"down", initUp:0, initDown:7, cardAction:"flip", actions:[] }
+        { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", layout:"stack", face:"down", cardAction:"none" },
+        { key:"shared", label:"Card to Beat", shared:true, viewable:true, actionable:"noone", layout:"stack", face:"up", initUp:1, cardAction:"none" },
+        { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"stack-fan", face:"down", initDown:7, cardAction:"flip", actions:[
+          { key:"fold", label:"Fold", action:"fold", actionFilter:[] },
+          { key:"bet", label:"Bet &hellip;", action:"betDialog" },
+          { key:"check", label:"Check", action:"betMin", actionFilter:{ callAmount:false, betAmount:false } },
+          { key:"call", label:"Call", action:"betMin", actionFilter:[{ callAmount:true  }, { betAmount:true }] },
+          { key:"allIn", label:"All In!", action:"betMax", actionFilter:{ betAmount:true } }
+        ] }
       ]
     }
   };
