@@ -633,7 +633,8 @@ var Application = function (appKey, socket) {
             _app.game = new Game(_app, pData.gameType);
           }
           _app.game.init(pData);
-          _app.post({title:"New Game", text:_app.gameConfigs[pData.gameType]});
+          var title = (pData && pData.gameType && _app.gameConfigs[pData.gameType]) ? _app.gameConfigs[pData.gameType]["title"] : "";
+          _app.post({title:"New Game", text:(!!title)?title:"new game started" });
         });
 
         _app.io.on('initRoom', function(pConfig){
