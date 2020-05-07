@@ -374,7 +374,7 @@ var Application = function (appKey, socket) {
      * Summary: Checks if the passed state object meets any or all of passed condition filters
      **/
     value: function(pState, pConditionSets, pMatchAll) {
-      return true;
+      console.log(pState, pConditionSets, pMatchAll)
       var k, filter;
       var filters = (Array.isArray(pConditionSets)) ? pConditionSets : (typeof pConditionSets === "object") ? [pConditionSets] : [];
       var chkItem = pState;
