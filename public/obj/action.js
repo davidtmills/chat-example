@@ -137,7 +137,6 @@ function Action (application, pContext, pConfig) {
        var stack = _ctx;
        var obj = Object.assign({ }, userData, playerData, _app.prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
        var result = _app.check(obj, _actionFilters);
-       console.log("ACTIONABLE", result, stack, obj, _actionFilters)
        return result;
     },
 
@@ -197,7 +196,6 @@ function Action (application, pContext, pConfig) {
           matches.push(stack);
         }
       });
-      console.log("stackMatches", matches);
       return matches;
     },
 
@@ -344,7 +342,6 @@ function Action (application, pContext, pConfig) {
         }
       }
     }
-    console.log("_parseActionFilter", pInput, obj)
     return obj;
   }
 
@@ -482,7 +479,6 @@ function Action (application, pContext, pConfig) {
       //first update each card's face, selected, stack and prevStack silently
       matchedCards.forEach(function(v){
         var card = v;
-        if (!(card && card.key)) { console.log(card, v)}
         var cardState = { face:card.face, selected:false, stack:stackKey, prevStack:card.stack.key }
         switch (config['cardFace']) {
           case 'toggle':

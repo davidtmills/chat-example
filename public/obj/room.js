@@ -258,7 +258,6 @@ if (_app.key === "SERVER") {
         socket.__roomKey = _var.key;
         socket.join(_var.key);
         socket.rooms[_var.key] = _var.title;
-        console.log("262", user.key, user.socket.__roomKey, user.socket.rooms);
         //add to the room.users object
         _var.users[userKey] = user.state;
         //update the room setting for the user in question
@@ -318,7 +317,6 @@ if (_app.key === "SERVER") {
             //destroy the room when no more users
             this.destroy();
           }
-          console.log(user.key, user.socket.__roomKey, user.socket.rooms);
         }
       }
     },

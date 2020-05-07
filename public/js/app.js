@@ -55,8 +55,6 @@ $(function () {
         //todo: check actions collection on stack for a match
         if (typeof stack.stackMenu == "object") {
           if (stack.stackMenu[stack["cardAction"]]) {
-            //console.log(stack.stackMenu[stack["cardAction"]]);
-            //stack.execute(stack.stackMenu[act[0]]);
           }
         }
     }
@@ -146,8 +144,7 @@ $(function () {
             var $el = $(this);
             var playerKey = $el.attr("player-key");
             var playerName = $el.attr("player-name");
-            var isDealer = playerKey === dealerKey;
-            var obj = Object.assign({}, _app.protoPlayer, { key:playerKey, name:playerName, dealer:isDealer });
+            var obj = Object.assign({}, _app.protoPlayer, { key:playerKey, name:playerName });
             players.push(obj);
             console.log('Adding player', obj);
           });
@@ -181,7 +178,6 @@ $(function () {
         var css = $el.attr("msg-css") || "";
         var msg = { title:title, text:text, icon:icon, css:css }
         $($el.attr("data-target")).val("");
-        console.log("sendMessage", msg);
         _app.sendMessage(msg);
         break;
 
@@ -202,11 +198,10 @@ $(function () {
     var actions = (!!card) ? stack.cardActions : stack.actions;
     var action;
     if (!!stack && !!actions) {
-      actions = actions.filter(function (v) { console.log(v, actionKey); return (v.key === actionKey); });
+      actions = actions.filter(function (v) { return (v.key === actionKey); });
       if (actions.length) {
         console.log("executing", actions[0]);
         var action = new Action(_app, (!!card) ? card : stack, actions[0]);
-        console.log(action);
         action.execute();
       }
     } else {
@@ -230,12 +225,13 @@ $(function () {
   $('body').on('show.bs.dropdown', '.stack-menu', function(event){
     var $button = $(event.relatedTarget) // Button that triggered the dropdown
     var $card = $button.closest(".card-item[card]");
-    var $stack = $button.closest(".stack[stack]");
-    var $menu = $(this).find(".dropdown-menu");
-    var stack = _app.game.getStack($stack.attr("stack"));
-    var actions = ($card.length) ? stack.cardActions : stack.actions;
-    //actions = actions.filter((v) => stack.check(v.filter) );
-    _app.applyTemplate("actionlist", actions, $menu);
+    if ($card.length === 0) {
+      var $stack = $button.closest(".stack[stack]");
+      var $menu = $(this).find(".dropdown-menu");
+      var stack = _app.game.getStack($stack.attr("stack"));
+      var html = stack.stackMenu;
+      $menu.html(html);
+    }
   })
 
   //*** Dropdown Submenu Extension ****/
@@ -281,10 +277,6 @@ $(function () {
     });
     //refreshes stack html if stack has changed or just card face and selection for changed cards
     stack.refreshUI();
-    //get the list of available card actions based on user and game context and the action's filter
-//    var actions = stack.cardActions.filter((v) => stack.check(v.filter) );
-    //generate new html for menu options and replace current menu html
-//    _app.applyTemplate("actionlist", actions, $menu);
     $menu.html(stack.cardMenu);
   })
 

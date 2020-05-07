@@ -125,7 +125,7 @@ var Application = function (appKey, socket) {
   });
 
   Object.defineProperty(this,"protoPlayer",{
-    value: { key:"", name:"", folded:false, dealer:false, active:false, high:false, opener:false, points:0, bank:0, pot:0, bet:0, bid:"", tricks:[] },
+    value: { key:"", name:"", folded:false, points:0, bank:0, pot:0, bet:0, bid:"", tricks:[] },
     writable: false,
     enumerable: false
   });
@@ -158,7 +158,6 @@ var Application = function (appKey, socket) {
         if (accessCode !== "") {
           var matches = Object.values(_app.rooms).filter((v) => (v.accessCode === accessCode));
           room  = (matches.length > 0) ? matches[0] : undefined;
-          console.log("accessCode Match", matches.length);
         }
         return room;
       } else {
@@ -215,7 +214,7 @@ var Application = function (appKey, socket) {
         obj.css = (parts.length > 2) ? parts[2] : "";
         obj.title = (_app.key === "SERVER") ? "Server" : (typeof _app.user === "object") ? _app.user.name : "Guest";
       } else {
-        obj = Object.assign(obj, message);
+        Object.assign(obj, message);
       }
       socket.emit('chatMessage', obj);
       return null;
@@ -244,13 +243,11 @@ var Application = function (appKey, socket) {
 
   Object.defineProperty(this,"newGame",{
     value:function(pGameType) {
-      console.log("newGame", pGameType)
       var gameKey = _app.accessCode;
       var players = [{ key:_app.user.key, name:_app.user.name }];
       if ((typeof pGameType == "string") && (pGameType != "") && (typeof _var.gameConfigs[pGameType] == "object")) {
         _var.game = new Game(_app, pGameType, { hostKey:_app.user.key, dealerKey:_app.user.key, players:[] });
         _var.game.init();
-        console.log(_var.game)
       }
       return _var.game;
     },
@@ -259,7 +256,6 @@ var Application = function (appKey, socket) {
 
   Object.defineProperty(this,"joinGame",{
     value:function(gameCode) {
-      console.log("joinGame")
       //TODO: Add code to to join an existing game
       _var.game = "";
       this.applyTemplate("gamearea", _app, "#gamearea");
@@ -404,14 +400,14 @@ var Application = function (appKey, socket) {
               if (Array.isArray(cmpVal) && (cmpVal.length === 2) && (typeof itemVal === "number")) {
                 matched = ((itemVal >= cmpVal[0]) && (itemVal <= cmpVal[1]));
               } else {
-                console.log("Invalid Object", cmpVal, itemVal);
+                console.log("_app.check Invalid Object", cmpVal, itemVal);
               }
               break;
             case "number":
               if (typeof chkItem[k] === "number") {
                 matched = (filter[k] < 0) ? (chkItem[k] <= (-1 * filter[k])) : (chkItem[k] === filter[k]);
               } else {
-                console.log("NaN", cmpVal, itemVal);
+                console.log("_app.check NaN", cmpVal, itemVal);
               }
               break;
             default:
@@ -483,6 +479,136 @@ var Application = function (appKey, socket) {
           return (opt.html) ? new Handlebars.SafeString("" + num + "<sup>" + ord + "</sup>") : "" + num + ord;
         })
 
+        //Returns true if the two passed values match
+        Handlebars.registerHelper('eq', function(lvalue, rvalue, options) {
+          if (arguments.length < 3)
+            throw new Error("Handlebars Helper eq needs 2 parameters");
+          if (lvalue != rvalue) {
+            return options.inverse(this);
+          } else {
+            return options.fn(this);
+          }
+        });
+
+        //Returns true if comparison is true
+        Handlebars.registerHelper('test', function (lvalue, operator, rvalue, options) {
+          var operators, result;
+          if (arguments.length < 3) {
+            throw new Error("Handlerbars Helper 'compare' needs 2 parameters");
+          }
+          if (options === undefined) {
+            options = rvalue;
+            rvalue = operator;
+            operator = "===";
+          }
+          operators = {
+            '==': function (l, r) { return l == r; },
+            '===': function (l, r) { return l === r; },
+            '!=': function (l, r) { return l != r; },
+            '!==': function (l, r) { return l !== r; },
+            '<': function (l, r) { return l < r; },
+            '>': function (l, r) { return l > r; },
+            '<=': function (l, r) { return l <= r; },
+            '>=': function (l, r) { return l >= r; },
+            'typeof': function (l, r) { return typeof l == r; },
+            '!typeof': function (l, r) { return typeof l != r; },
+            'in': function (l, r) {
+              var arr = (Array.isArray(r)) ? r : (typeof r == 'string') ? r.replace(/, /g, ",").split(",") : [];
+              return r.includes(l);
+            },
+            '!in': function (l, r) {
+              var arr = (Array.isArray(r)) ? r : (typeof r == 'string') ? r.replace(/, /g, ",").split(",") : [];
+              return !r.includes(l);
+            }
+          };
+          if (!operators[operator]) {
+            throw new Error("Handlerbars Helper 'compare' doesn't know the operator " + operator);
+          }
+          result = operators[operator](lvalue, rvalue);
+          if (result) {
+            return options.fn(this);
+          } else {
+            return options.inverse(this);
+          }
+        });
+
+        //Transforms text to uppercase, lowercase, capitalize, degree, percent or binary based string
+        Handlebars.registerHelper('format', function(value, transform, trueText, falseText) {
+          var text = (typeof(value) != "undefined") ? "" + value : "";
+          var falseVal = (typeof(falseText)=="string") ? falseText : "";
+          var trueVal = (typeof(trueText)=="string") ? trueText : text;
+          //if a transformation was specified ...
+          if (typeof(transform) == "string") {
+            switch (transform) {
+              case "stringify":
+                if (typeof value == "object") {
+                  text = JSON.stringify(value);
+                } else {
+                  text = "" + text;
+                }
+                break;
+              case "uppercase":
+                //replace underscores with spaces
+                text = text.replace(/_/g, " ");
+                //If there is a lowercase letter or number immediately followed by a capital add a space between
+                text = text.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+                text = text.toUpperCase();
+                break;
+              case "lowercase":
+                //replace underscores with spaces
+                text = text.replace(/_/g, " ");
+                //If there is a lowercase letter or number immediately followed by a capital add a space between
+                text = text.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+                text = text.toLowerCase();
+                break;
+              case "normalcase":
+                //replace underscores with spaces
+                text = text.replace(/_/g, " ");
+                //If there is a lowercase letter or number immediately followed by a capital add a space between
+                text = text.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+                break;
+              case "capitalize":
+                //replace underscores with spaces
+                text = text.replace(/_/g, " ");
+                //If there is a lowercase letter or number immediately followed by a capital add a space between
+                text = text.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+                text = text.replace(/(\b[a-z](?!\s))/g, function(x){return x.toUpperCase();});
+                break;
+              case "integer":
+                text = (isNaN(parseInt(text))) ? 0 : parseInt(text);
+                break;
+              case "degree":
+                text = (isNaN(parseInt(text))) ? 0 : parseInt(text);
+                text = "" + text + "\u00B0";
+                break;
+              case "percent":
+                text = (isNaN(parseInt(text))) ? 0 : parseInt(text);
+                text = "" + text + "%";
+                break;
+              case "binary":
+              //set return value based on truthiness of variable value
+                log("INFO", [value, transform, trueText, falseText, text]);
+                switch (text) {
+                  case "":
+                  case "false":
+                  case "0":
+                  case "off":
+                  case "no":
+                  case "inactive":
+                  case "closed":
+                  case "clear":
+                  case "tested":
+                  case "dry":
+                    text = (typeof(falseVal) == "string") ? falseVal.replace("{0}", text) : falseVal;
+                    break;
+                  default: text = (typeof(trueVal) == "string") ? trueVal.replace("{0}", text) : trueVal;
+                }
+                break;
+            }
+          }
+          return text;
+        });
+
         //*** Initialize user data
         if (_var.user !== "object") {
           _var.user = new User (_app, { name:this.randomName() });
@@ -507,12 +633,11 @@ var Application = function (appKey, socket) {
             _app.game = new Game(_app, pData.gameType);
           }
           _app.game.init(pData);
-          _app.post({title:"New Game", text:"Starting new game."});
+          _app.post({title:"New Game", text:_app.gameConfigs[pData.gameType]});
         });
 
         _app.io.on('initRoom', function(pConfig){
           _app.room = (typeof pConfig === "object") ? new Room(_app, pConfig) : undefined;
-          //console.log("initRoom", _app.room);
         });
 
         _app.io.on('showDialog', function(pId){
@@ -526,7 +651,6 @@ var Application = function (appKey, socket) {
           //update state of local object if one exists
           if (typeof obj === "object") {
             obj.state = pData;
-            //console.log("io.on.state", pClass, pKey, pData);
           } else {
             console.log("unsupported object", pClass, pKey, pData)
           }
@@ -537,7 +661,6 @@ var Application = function (appKey, socket) {
         socket.on('addUser', function(pConfig){
           var room = _app.room;
           var userData = pConfig;
-          //console.log(room, userData)
           if ((typeof room === "object") && (typeof userData.key === "string") && (userData.key !== "")) {
             //use room property to just update the LOCAL copy
             room.addUser(userData, true)
@@ -641,27 +764,27 @@ var Application = function (appKey, socket) {
       chat:[],
       stacks:[
         { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"everyone", layout:"stack", face:"down", cardAction:"menu", actions:[
-          { key:"deal3", label:"Deal 3", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:3 },
-          { key:"deal4", label:"Deal 4", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:4 },
-          { key:"deal5", label:"Deal 5", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:5 },
-          { key:"deal6", label:"Deal 6", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:6 },
-          { key:"deal7", label:"Deal 7", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:7 },
-          { key:"deal8", label:"Deal 8", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:8 },
-          { key:"deal9", label:"Deal 9", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:9 },
-          { key:"deal10", label:"Deal 10", action:"deal", stackFilter:{ group:"hand" }, cardFace:"down", numCards:10 },
+          { key:"deal3", label:"Deal 3", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:3 },
+          { key:"deal4", label:"Deal 4", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:4 },
+          { key:"deal5", label:"Deal 5", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:5 },
+          { key:"deal6", label:"Deal 6", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:6 },
+          { key:"deal7", label:"Deal 7", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:7 },
+          { key:"deal8", label:"Deal 8", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:8 },
+          { key:"deal9", label:"Deal 9", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:9 },
+          { key:"deal10", label:"Deal 10", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:10 },
         ], cardActions:[
-          { key:"draw", label:"Draw", action:"give", stackFilter:{ group:"hand", owner:true }, cardFace:"down" },
+          { key:"draw", label:"Draw", action:"give", stackFilter:{ group:"hand", owner:true }, cardFace:"down", message:"drew a card" },
         ] },
         { key:"discard", label:"Discard", shared:true, viewable:true, actionable:"everyone", layout:"stack", face:"up", initUp:1, cardAction:"menu", cardActions:[
-          { key:"pickUp", label:"Pick up", action:"give", stackFilter:{ group:"hand", owner:true }, cardFace:"down" }
+          { key:"pickUp", label:"Pick up", action:"give", stackFilter:{ group:"hand", owner:true }, cardFace:"down", message:"picked up the discard" }
         ] },
         { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initDown:0, cardAction:"first", actions:[
-          { key:"discard", label:"Discard", action:"give", actionFilter:{ selectedCards:1, owner:true }, stackFilter:{ group:"discard" }, cardFilter:{ selected:true }, cardFace:"up" },
-          { key:"play", label:"Play word", action:"give", actionFilter:{ selectedCards:[2,10], owner:true }, stackFilter:{ group:"words", owner:true }, cardFace:"up" },
-          { key:"unplayed", label:"No more words", action:"give", actionFilter:{ owner:true }, stackFilter:{ group:"unused", owner:true }, cardFace:"up" }
+          { key:"discard", label:"Discard", action:"give", actionFilter:{ selectedCards:1, owner:true }, stackFilter:{ group:"discard" }, cardFilter:{ selected:true }, cardFace:"up", message:"has discarded" },
+          { key:"play", label:"Play word", action:"give", actionFilter:{ selectedCards:[2,10], owner:true }, stackFilter:{ group:"words", owner:true }, cardFilter:{ selected:true }, cardFace:"up", message: "has played a word" },
+          { key:"unplayed", label:"No more words", action:"give", actionFilter:{ owner:true }, stackFilter:{ group:"unused", owner:true }, cardFace:"up", message:"is done playing" }
         ] },
-        { key:"words", label:"Words", shared:false, viewable:true, actionable:"noone", layout:"fan", face:"up", cardAction:"none" },
-        { key:"unused", label:"Unused", shared:false, viewable:true, actionable:"noone", layout:"fan", face:"up", cardAction:"none" }
+        { key:"words", label:"Words", css:"card-xsm", shared:false, viewable:true, actionable:"noone", layout:"fan", face:"up", cardAction:"none" },
+        { key:"unused", label:"Unused", css:"card-xsm", shared:false, viewable:true, actionable:"noone", layout:"fan", face:"up", cardAction:"none" }
       ]
     },
     holdem:{

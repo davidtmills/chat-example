@@ -142,6 +142,108 @@ var User = function (application, config) {
     enumerable: false
   });
 
+  Object.defineProperty(this,"player",{
+    /**
+     * If in a game, returns the first player entry with a key matching user key
+     **/
+    get: function() {
+      var players = [];
+      var userKey = _var.key;
+      if (_app.game && _app.game.players) {
+        players = _app.game.players.filter(v => (v.key === userKey));
+      }
+      return (players.length) ? players[0] : undefined;
+    },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"host",{
+    /**
+     * If in a room, returns/sets whether user is the host
+     **/
+    get: function() {
+      var userKey = _var.key;
+      return (_app.room && _app.room.hostKey && (userKey === _app.room.hostKey));
+    },
+    set: function(value) {
+      var userKey = _var.key;
+      if (_app.room && (value === true)) {
+        _app.room.hostKey = userKey;
+      } else if (this.host) {
+        //set new host to first available user
+        var users = Object.keys(_app.room.users).filter(v => (v.key !== userKey));
+        _app.room.hostKey = (users.length) ? users[0].key : "";
+      }
+    },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"dealer",{
+    /**
+     * If in a game, returns/sets whether user is dealer
+     *  if set to false the next available player is made dealer
+     **/
+    get: function() {
+      var userKey = _var.key;
+      return (_app.game && _app.game.dealer && (userKey === _app.game.dealer.key));
+    },
+    set: function(value) {
+      var userKey = _var.key;
+      if (_app.game && _app.game.dealer) {
+        if ((value === true) && (_app.game.dealer.key !== userKey)) {
+          _app.game.dealer = userKey;
+        } else if (_app.game.dealer.key === userKey) {
+          _app.game.dealer = "__next";
+        }
+      }
+    },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"active",{
+    /**
+     * If in a game, returns/sets whether user is active player
+     *  if set to false the next non-folded player is made active
+     **/
+    get: function() {
+      var userKey = _var.key;
+      return (_app.game && _app.game.active && (userKey === _app.game.active.key));
+    },
+    set: function(value) {
+      var userKey = _var.key;
+      if (_app.game && _app.game.active) {
+        if ((value === true) && (_app.game.active.key !== userKey)) {
+          _app.game.active = userKey;
+        } else if (_app.game.active.key === userKey) {
+          _app.game.active = "__next";
+        }
+      }
+    },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"high",{
+    /**
+     * If in a game, returns/sets whether user is high better/bidder
+     *  if set to false the next non-folded player is made high
+     **/
+    get: function() {
+      var userKey = _var.key;
+      return (_app.game && _app.game.high && (userKey === _app.game.high.key));
+    },
+    set: function(value) {
+      var userKey = _var.key;
+      if (_app.game && _app.game.high) {
+        if ((value === true) && (_app.game.high.key !== userKey)) {
+          _app.game.high = userKey;
+        } else if (_app.game.high.key === userKey) {
+          _app.game.high = "__next";
+        }
+      }
+    },
+    enumerable: false
+  });
+
   return this;
 }
 

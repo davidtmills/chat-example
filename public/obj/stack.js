@@ -173,98 +173,6 @@ var Stack = function (application, config) {
     enumerable: false
   });
 
-  Object.defineProperty(this,"check",{
-    value:function(conditions, blnMatchAll) {
-      var x = 0, v = "", keys = [], vals = [];
-      var cond = conditions;
-      var ctx = {}
-      var matchAll = (typeof blnMatchAll == "boolean") ? blnMatchAll : true;
-      var result = matchAll;
-      var user = (typeof _app.user == "object") ? _app.user.key : "";
-      ctx.user = user;
-      ctx.isOwner = (_var.owner == user) ? true : false;
-      ctx.isDealer = ((typeof _app.game.dealer == "object") && (_app.game.dealer.key == user)) ? true : false;
-      ctx.isActive = ((typeof _app.game.activePlayer == "object") && (_app.game.activePlayer.key == user)) ? true : false;
-      ctx.isBidder = ((typeof _app.game.bidder == "object") && (_app.game.bidder.key == user)) ? true : false;
-      ctx.isBetter = ((typeof _app.game.better == "object") && (_app.game.better.key == user)) ? true : false;
-      ctx.isFolded = false;
-      ctx.mode = ((typeof _app.game.mode == "string") && (_app.game.mode != "")) ? _app.game.mode : "play";
-      ctx.numCards = _var.cardKeys.length; //use var to just get count based on cardKeys array
-      ctx.numSel = this.cards.filter((v) => v.selected).length; //use cards property to have access to card properties
-      ctx.numTricks = (Array.isArray(_app.game["tricks"])) ? _app.game.tricks.length : 0;
-      ctx.numBids = 0;
-      ctx.numBets = 0;
-      ctx.amtBet = 0;
-      ctx.amtOwed = 0;
-
-      //ctx.mode = "bid";
-      //ctx.numBids = 0;
-
-      //updates result based on result of current check and matchAll setting
-      var updateResult = function (newVal) {
-        result = (matchAll) ? (result && newVal) : (result || newVal);
-      }
-
-      //if string try to parse as JSON object
-      if (typeof cond == "string") {
-        try { cond = JSON.parse(cond); } catch(e) { };
-      }
-
-      //if non-array object then get key and value arrays
-      if ((typeof cond == "object") && (!Array.isArray(cond))) {
-        //update  match mode based on object property UNLESS passed explicitly as func param
-        if ((typeof blnMatchAll != "boolean") && (typeof cond.match_all == "boolean")) {
-          matchAll = cond.match_all;
-          result = matchAll;
-        }
-        keys = Object.keys(cond);
-        vals = Object.values(cond);
-      }
-
-      //Iterates checking each condition until ...
-      //1. a condition fails in ALL mode
-      //2. OR a condition succeeds in ANY mode
-      while ((x < keys.length) && (matchAll == result)) {
-        v = vals[x];
-        switch (keys[x]) {
-          case "match_all": break;
-          //Game settings
-          case "mode": updateResult((ctx.mode == v)); break;
-          //Role checks
-          case "owner": updateResult((ctx.isOwner == v)); break;
-          case "dealer": updateResult((ctx.isDealer == v)); break;
-          case "active": updateResult((ctx.isActive == v)); break;
-          case "bidder": updateResult((ctx.isBidder == v)); break;
-          case "better": updateResult((ctx.isBetter == v)); break;
-          //Card/Selection checks
-          case "minCards": updateResult((ctx.numCards >= v)); break;
-          case "maxCards": updateResult((ctx.numCards <= v)); break;
-          case "minSel": updateResult((ctx.numSel >= v)); break;
-          case "maxSel": updateResult((ctx.numSel <= v)); break;
-          //Bidding/Tricks
-          case "minTricks": updateResult((ctx.numTricks >= v)); break;
-          case "maxTricks": updateResult((ctx.numTricks <= v)); break;
-          case "minBids": updateResult((ctx.numBids >= v)); break;
-          case "maxBids": updateResult((ctx.numBids <= v)); break;
-          //Betting
-          case "folded": updateResult((ctx.isFolded == v)); break;
-          case "minBets": updateResult((ctx.numBets >= v)); break;
-          case "maxBets": updateResult((ctx.numBets <= v)); break;
-          case "minBet": updateResult((ctx.amtBet >= v)); break;
-          case "maxBet": updateResult((ctx.amtBet <= v)); break;
-          case "minOwed": updateResult((ctx.amtOwed >= v)); break;
-          case "maxOwed": updateResult((ctx.amtOwed <= v)); break;
-          default: console.log("Warning: unknown constraint ", keys[x], v);
-        }
-        //console.log("   check " + keys[x] + "=" + vals[x] + " is " + result);
-        x++;
-      }
-
-      return result;
-    },
-    enumerable: false
-  });
-
   Object.defineProperty(this,"hasRole",{
     value:function(contexts, def) {
       var x, v;
@@ -312,7 +220,6 @@ var Stack = function (application, config) {
           x++;
         }
       }
-      //console.log(this.key, "hasRole", result, contexts);
       return result;
     },
     enumerable: false
@@ -469,13 +376,12 @@ var Stack = function (application, config) {
 
   Object.defineProperty(this,"stackMenu",{
     get: function() {
-      var html = "";
       var stack = this;
       var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
       var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
       var obj = Object.assign({ }, userData, playerData, _app.prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
       var menu = stack.actions.filter(v => _app.check(obj, v["actionFilter"]));
-      html = _app.applyTemplate("actionlist", menu);
+      var html = _app.applyTemplate("actionlist", menu);
       return html;
     },
     enumerable: false
@@ -483,13 +389,12 @@ var Stack = function (application, config) {
 
   Object.defineProperty(this,"cardMenu",{
     get: function() {
-      var html = "";
       var stack = this;
       var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
       var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
       var obj = Object.assign({ }, userData, playerData, _app.prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
       var menu = stack.cardActions.filter(v => _app.check(obj, v["actionFilter"]));
-      html = _app.applyTemplate("actionlist", menu);
+      var html = _app.applyTemplate("actionlist", menu);
       return html;
     },
     enumerable: false
@@ -562,7 +467,6 @@ var Stack = function (application, config) {
   //deal: moves specified number of cards from this stack to each of the specified stacks
   Object.defineProperty(this,"deal",{
     value: function(options) {
-      console.log("deal", this.key, options)
       var c = (typeof options.num_cards == "number") ? options.num_cards : 1;
       var groups = (typeof options.groups == "object") ? options.groups : (typeof options.groups == "string") ? options.groups.split(",") : (typeof options.group == "string") ? [ options.group ] : [ "hand" ];
       var ownerKey = this.owner.key;
@@ -738,9 +642,6 @@ var Stack = function (application, config) {
       var cd = _app.game.getCard(card);
       var cardKeys = this.cardKeys.slice();
       if (typeof cd == "object") {
-        //remove the card from its current stack by setting stack
-        //cd.stack = "";
-        console.log(card, cd);
         var srcStack = _var.stacks[cd.stack];
         if (srcStack === "object") {
           srcStack.removeCard(cd);

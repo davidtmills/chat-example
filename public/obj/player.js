@@ -3,7 +3,6 @@
 var Player = function (application, options) {
   //store a private reference to the application
   var _app = application;
-  var _isServer = (typeof module !== 'undefined' && typeof module.exports !== 'undefined');
 
   //define private config variable to hold property values
   var _var = Object.assign ( { key:"", name:"", folded:false, buyIns:0, bank:0, wager:{ mode:"", bet:0, pot:0 }, bidding:{ round:0, bid:0, trump:"" }, tricks:[], scores:[], gamePoints:0, lastUpdate:Date.now(), lastRefresh:0 }, options );
@@ -213,38 +212,6 @@ var Player = function (application, options) {
     {
       var thisKey = this.key;
       return _app.game.players.findIndex((v) => v.key == thisKey);
-    },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"isHost",{
-    get: function()
-    {
-      return _app.room.hostKey == this.key;
-    },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"isDealer",{
-    get: function()
-    {
-      return ((typeof _app.game.dealer === "object") && (_app.game.dealer.key == this.key));
-    },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"isActive",{
-    get: function()
-    {
-      return ((typeof _app.game.active === "object") && (_app.game.active.key == this.key));
-    },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"isHigh",{
-    get: function()
-    {
-      return ((typeof _app.game.high === "object") && (_app.game.high.key == this.key));
     },
     enumerable: false
   });

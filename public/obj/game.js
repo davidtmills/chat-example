@@ -228,7 +228,7 @@ var Game = function (application, pGameType, pGameState) {
       //get all users in the room so we can add new players to empty seats
       var userlist = ((typeof _app.room === "object") && (typeof _app.room.users === "object")) ? Object.values(_app.room.users).map((v) => ({ key:v.key, name:v.name })) : [];
       //remove existing players from the list of available users
-      userlist = userlist.filter((v) => (typeof _app.game.getPlayer(v.key) !== "object"));
+      userlist = userlist.filter((v) => (typeof this.getPlayer(v.key) !== "object"));
       for (var x = 0; x < maxPlayers; x++) {
         var seat = Object.assign({}, _app.protoPlayer);
         if (_var.players.length > x) {
@@ -392,13 +392,6 @@ var Game = function (application, pGameType, pGameState) {
     enumerable: false
   });
 
-  Object.defineProperty(this,"isHost",{
-    value:function(user) {
-      return ((typeof _app.room === "object") && (typeof _app.user === "object") && (_app.room.hostKey === _app.user.key))
-    },
-    enumerable: false
-  });
-
   //Returns the dealer player if there is one, otherwise host
   Object.defineProperty(this,"dealer",{
     get: function() {
@@ -408,18 +401,21 @@ var Game = function (application, pGameType, pGameState) {
     },
     set: function(pValue) {
       var value = (typeof pValue === "object") ? pValue.key : (typeof pValue === "string") ? pValue : "";
-      if (_var.dealerKey !== value) {
-        _var.dealerKey = value;
-        _var.lastUpdate = { dealerKey:value };
+      var userKey = _var.dealerKey;
+      if (value === "__next") {
+        var players = _var.players.slice();
+        var idx = players.findIndex(v => (v.key === userKey)) + 1;
+        value = (players.length > idx) ? players[idx].key : (players.length) ? players[0].key : "";
       }
-    },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"isDealer",{
-    value:function(user) {
-      var userKey = (typeof user === "object") ? user.key : ((typeof user === "string") && (user !== "")) ? user : _app.user.key;
-      return (userKey == _var.dealerKey);
+      if (userKey !== value) {
+        var p = this.getPlayer(value);
+        _var.dealerKey = (p && p.key) ? p.key : "";
+        _var.activeKey = _var.dealerKey;
+        _var.lastUpdate = { dealerKey:_var.dealerKey, activeKey:_var.activeKey };
+        if (p && p.name) {
+          _app.sendMessage( { title:"Dealer", text:p.name + " is the dealer" } )
+        }
+      }
     },
     enumerable: false
   });
@@ -431,20 +427,22 @@ var Game = function (application, pGameType, pGameState) {
       var player = this.getPlayer(playerKey);
       return (typeof player === "object") ? player : { key:playerKey, name:playerKey };
     },
-    set: function(value) {
+    set: function(pValue) {
       var value = (typeof pValue === "object") ? pValue.key : (typeof pValue === "string") ? pValue : "";
-      if (_var.activeKey !== value) {
-        _var.activeKey = value;
-        _var.lastUpdate = { activeKey:value };
+      var userKey = _var.activeKey;
+      if (value === "__next") {
+        var players = _var.players.filter(v => ((v.key === userKey) || (v['folded'] !== true)));
+        var idx = players.findIndex(v => (v.key === userKey)) + 1;
+        value = (players.length > idx) ? players[idx].key : (players.length) ? players[0].key : "";
       }
-    },
-    enumerable: false
-  });
-
-  Object.defineProperty(this,"isActive",{
-    value:function(user) {
-      var userKey = (typeof user === "object") ? user.key : ((typeof user === "string") && (user !== "")) ? user : _app.user.key;
-      return (userKey == _var.activeKey);
+      if (userKey !== value) {
+        var p = this.getPlayer(value);
+        _var.activeKey = (p && p.key) ? p.key : "";
+        _var.lastUpdate = { activeKey:_var.activeKey };
+        if (p && p.name) {
+          _app.sendMessage( { title:"Dealer says\2026", text:p.name + "'s turn to play" } )
+        }
+      }
     },
     enumerable: false
   });
@@ -456,21 +454,23 @@ var Game = function (application, pGameType, pGameState) {
       var player = this.getPlayer(playerKey);
       return (typeof player === "object") ? player : { key:playerKey, name:playerKey };
     },
-    set: function(value) {
+    set: function(pValue) {
       var value = (typeof pValue === "object") ? pValue.key : (typeof pValue === "string") ? pValue : "";
-      if (_var.highKey !== value) {
-        _var.highKey = value;
-        _var.lastUpdate = { highKey:value };
+      var userKey = _var.highKey;
+      if (value === "__next") {
+        var players = _var.players.filter(v => ((v.key === userKey) || (v['folded'] !== true)));
+        var idx = players.findIndex(v => (v.key === userKey)) + 1;
+        value = (players.length > idx) ? players[idx].key : (players.length) ? players[0].key : "";
       }
-    },
-    enumerable: false
-  });
-
-  //Returns true if user is the high better, which is set automatically by betting functions
-  Object.defineProperty(this,"isHigh",{
-    value:function(user) {
-      var userKey = (typeof user === "object") ? user.key : ((typeof user === "string") && (user !== "")) ? user : _app.user.key;
-      return (userKey == _var.highKey);
+      if (userKey !== value) {
+        var p = this.getPlayer(value);
+        _var.highKey = (p && p.key) ? p.key : "";
+        _var.activeKey = _var.highKey;
+        _var.lastUpdate = { highKey:_var.highKey, activeKey:_var.activeKey };
+        if (p && p.name) {
+          _app.sendMessage( { title:"Dealer says\2026", text:p.name + " is high player" } )
+        }
+      }
     },
     enumerable: false
   });
@@ -495,89 +495,7 @@ var Game = function (application, pGameType, pGameState) {
     enumerable: false
   });
 
-  /****** Constants ******/
-  Object.defineProperty(this,"defaultActions",{
-    value:{
-      /* Everyone Actions */
-      scores: { key:"scores", label:"Scores", menu:"game", filter:{ }, options:{ id:"dlgScores" }, method:"showDialog" },
-      rules: { key:"rules", label:"Rules", menu:"game", filter:{ }, options:{ id:"dlgRules" }, method:"showDialog" },
-      leave_game: { key:"leave_game", label:"Leave Game", menu:"game", filter:{ actor:"host" }, options:{}, method:"leaveGame" },
-      /* Host Actions */
-      settings: { key:"settings", label:"Game Settings", menu:"game", filter:{ actor:"host" }, options:{ id:"dlgGameSettings" }, method:"showDialog" },
-      players: { key:"players", label:"Players", menu:"game", filter:{ actor:"host" }, options:{ id:"dlgPlayers" }, method:"showDialog" },
-      new_deal: { key:"new_deal", label:"New Deal", menu:"game", filter:{ actor:"host" }, options:{}, method:"newDeal" },
-      new_game: { key:"new_game", label:"New Game", menu:"game", filter:{ actor:"host" }, options:{ id:"dlgGamesMenu" }, method:"showDialog" },
-      /* Dealer Actions */
-      reshuffle: { key:"shuffle", label:"Shuffle Deck", menu:"game", filter:{ actor:"dealer" }, options:{ from_stack:"discard", to_stack:"deck" }, method:"reshuffle" },
-      deal: { key:"deal", label:"Deal", menu:"game", filter:{ actor:"dealer" }, options:{ from_stack:"deck", to_stack:"hand", face:"down", count:1 }, method:"deal" },
-      deal_settings: { key:"deal_settings", label:"Deal &hellip;", menu:"game", filter:{ actor:"dealer" }, options:{ id:"dlgDeal" }, method:"showDialog" },
-      start_turn: { key:"start_turn", label:"Next Player &hellip;", menu:"game", filter:{ actor:"dealer" }, options:{ player:"prompt" }, method:"startTurn" },
-      /* Player Actions */
-      draw: { key:"draw", label:"Draw", menu:"game", filter:{ actor:"player", minSel:1 }, options:{ mode:"replace", from_stack:"deck", to_stack:"hand", discard_stack:"discard", face:"default" }, method:"draw" },
-      draw_one: { key:"draw_one", label:"Draw Card", menu:"game", filter:{ actor:"player", minCards:1 }, options:{ mode:"add", from_stack:"deck", to_stack:"hand", face:"default" }, method:"draw" },
-      pick_up: { key:"pick_up", label:"Pick Up", menu:"game", filter:{ actor:"player", minSel:1 }, options:{ from_stack:"discard", to_stack:"hand", face:"default" }, method:"pickUp" },
-      play: { key:"play", label:"Pick Up", menu:"game", filter:{ actor:"player", minSel:1 }, options:{ from_stack:"hand", to_stack:"table", face:"up" }, method:"play" },
-      discard: { key:"discard", label:"Discard", menu:"game", filter:{ actor:"player", minSel:1 }, options:{ from_stack:"hand", to_stack:"discard", face:"down" }, method:"play" },
-      bid: { key:"bid", label:"Bid &hellip;", menu:"game", filter:{ actor:"player" }, options:{ mode:"dialog" }, method:"bid" },
-      bid_pass: { key:"bid_pass", label:"Pass", menu:"game", filter:{ actor:"player" }, options:{ mode:"pass" }, method:"bid" },
-      claim: { key:"claim", label:"Claim", menu:"game", filter:{ actor:"player", minCards:2 }, options:{ from_stack:"table", to_stack:"tricks" }, method:"claim" },
-      bet_check: { key:"bet_check", label:"Check", menu:"game", filter:{ actor:"player", maxBet:0 }, options:{ mode:"check" }, method:"bet" },
-      bet_call: { key:"bet_call", label:"Call", menu:"game", filter:{ actor:"player", minBet:1 }, options:{ mode:"call" }, method:"bet" },
-      bet_min: { key:"bet_min", label:"Bet Minimum", menu:"game", filter:{ actor:"player", minBet:1 }, options:{ mode:"min" }, method:"bet" },
-      bet_max: { key:"bet_max", label:"Bet Maximum", menu:"game", filter:{ actor:"player" }, options:{ actor:"player", mode:"max" }, method:"bet" },
-      bet: { key:"bet", label:"Bet &hellip;", menu:"game", filter:{ actor:"player" }, options:{ mode:"dialog" }, method:"bet" },
-      end_turn: { key:"end_turn", label:"End Turn", menu:"game", filter:{ actor:"player" }, options:{ id:"next", actor:"player" }, method:"endTurn" },
-      /* Stack Actions */
-      sort_suit: { key:"sort_suit", label:"Group by Suit", menu:"stack", filter:{ minCards:3 }, options:{ sort:"suit" }, method:"sort" },
-      sort_rank: { key:"sort_rank", label:"Group by Rank", menu:"stack", filter:{ minCards:3 }, options:{ sort:"rank" }, method:"sort" },
-      sort_group: { key:"sort_group", label:"Group Selected", menu:"stack", filter:{ minSel:2 }, options:{ sort:"group" }, method:"sort" },
-      select_all: { key:"select_all", label:"Select All", menu:"stack", filter:{ minCards:1 }, options:{ select:"all" }, method:"select" },
-      unselect_all: { key:"unselect_all", label:"Unselect All", menu:"stack", filter:{ minCards:1 }, options:{ select:"none" }, method:"select" },
-      flip: { key:"flip", label:"Turn Over", menu:"stack", filter:{ minSel:1 }, options:{ face:"flip", mode:"selected" }, method:"flip" },
-      turn_up: { key:"turn_up", label:"Reveal", menu:"stack", filter:{ maxSel:0 }, options:{ face:"up", mode:"all" }, method:"flip" },
-      turn_down: { key:"turn_down", label:"Turn Down", menu:"stack", filter:{ maxSel:0 }, options:{ face:"down", mode:"all" }, method:"flip" },
-      pass_cards: { key:"pass_cards", label:"Pass Cards", menu:"game", filter:{ minSel:1 }, options:{ mode:"dialog" }, method:"pass" },
-      move: { key:"move", label:"Move Selected &hellip;", menu:"game", filter:{ minSel:1 }, options:{ mode:"dialog" }, method:"move" },
-      move_all: { key:"move", label:"Move All &hellip;", menu:"game", filter:{ maxSel:0 }, options:{ mode:"dialog" }, method:"move" }
-    },
-    enumerable: false
-  });
-
   /****** Functions ******/
-
-  Object.defineProperty(this,"nextPlayer",{
-    value:function (relPlayer, relOffset, paramSkipFolded) {
-      var relPlayerKey = (typeof relPlayer === "object") ? relPlayer.key : ((typeof relPlayer === "string") && (relPlayer != "")) ? relPlayer : (_var.activeKey != "") ? _var.activeKey : (_var.dealerKey != "") ? _var.dealerKey : this.hostKey;
-      var offset = (typeof relOffset === "number") ? relOffset : 1;
-      var skipFolder = (typeof paramSkipFolded === "boolean") ? paramSkipFolded : true;
-      var players = _var.players;
-      var nextP;
-      if (skipFolded) {
-        //remove folded players other than the relative player from the array
-        players = players.filter((v) => ((v.key == relPlayerKey) || (v["folded"] !== true)));
-      }
-      //find the index of the relative player in the array
-      var idx = players.findIndex((v) => v.key == relPlayerKey);
-      if (idx == -1) {
-        nextP = this.dealer;
-      } else if (offset == 0) {
-        nextP = players[idx];
-      } else if (players.length == 1) {
-        nextP = players[0];
-      } else if (idx == (players.length - 1)) {
-        nextP = players[0];
-      } else {
-        nextP = players[idx + 1];
-      }
-      //update the activeKey to new player key
-      _var.activeKey = (typeof nextP == "object") ? nextP.key : "";
-      //mark that UI needs updating
-      _var.lastUpdate = Date.now();
-      //return the next player object
-      return nextP;
-    },
-    enumerable: false
-  });
 
   Object.defineProperty(this,"getCard",{
     value:function(cardId) {
@@ -734,9 +652,10 @@ var Game = function (application, pGameType, pGameState) {
     value:function(pPlayers, pDesiredPlayers) {
       var player, roomUsers;
       var optAdd = {};
-      var optReset = { folded:false, active:false, high:false, opener:false };
+      var optReset = { folded:false };
       var config = this.config;
       var dealerKey = config.dealerKey;
+      var activeKey = config.activeKey;
       var desiredPlayers = (typeof pDesiredPlayers === "number") ? pDesiredPlayers : (Array.isArray(pPlayers)) ? pPlayers.length : config.maxPlayers;
       var players = (Array.isArray(pPlayers)) ? pPlayers.slice() : _var.players.slice();
       var room = (typeof _app.room === "object") ? _app.room : { users:{} };
@@ -767,25 +686,24 @@ var Game = function (application, pGameType, pGameState) {
       //preserve player information, but make sure required data is included
       players = players.map(function (v) {
         p = Object.assign({}, _app.protoPlayer, optAdd, (typeof v === "string") ? { key:v } : v, optReset );
-        //User previous dealer if none specified
-        if ((dealerKey === "") && (p.dealer === true)) { dealerKey = p.key; }
         //always get name from room.users
         p.name = (typeof room.users[p.key] === "object") ? room.users[p.key].name : p.key;
-        p.dealer = (p.key === dealerKey);
         return p;
       });
 
-      //If dealer not actual found, reset dealerKey to empty string
-      if ((dealerKey !== "") && (players.findIndex((v) => (v.key === dealerKey)) != -1)) {
-        dealerKey = "";
-      }
-
       //Set first player to dealer if none specified
       if ((dealerKey === "") && (players.length > 0)) {
-        players[0].dealer = true;
+        dealerKey = players[0].key;
+      }
+
+      if (activeKey === "") {
+        activeKey = dealerKey;
       }
 
       _var.players = players;
+      _var.dealerKey = dealerKey;
+      _var.activeKey = activeKey;
+
     },
     enumerable: false
   });
@@ -1009,8 +927,8 @@ var Game = function (application, pGameType, pGameState) {
       var x=0;
       var html = "";
       var optAdd = {};
-      //player settiungs that reset on each hand (dealer is handled separately)
-      var optReset = { folded:false, active:false, high:false, opener:false };
+      //player settiungs that reset on each hand
+      var optReset = { folded:false };
 
       var stacks, player, players, dealerKey, gameConfig, desiredPlayers, roomUsers;
 
@@ -1021,8 +939,6 @@ var Game = function (application, pGameType, pGameState) {
       _var.gameType = (typeof pGameType === "string") ? pGameType : _var.gameType;
 
       gameConfig = this.config;
-
-      dealerKey = (typeof pDealerKey === "string") ? pDealerKey : "";
 
       players = (Array.isArray(pPlayers)) ? pPlayers : (_var.players.length > 0) ? _var.players.slice() : [];
 
@@ -1055,27 +971,17 @@ var Game = function (application, pGameType, pGameState) {
       //preserve player information, but make sure required data is included
       players = players.map(function (v) {
         p = Object.assign({}, _app.protoPlayer, (typeof v === "string") ? { key:v } : (typeof v === "object") ? v : {}, optReset );
-
-        //User previous dealer if none specified
-        if ((dealerKey === "") && (p.dealer === true)) { dealerKey = p.key; }
-
         //always get name from room.users
         p.name = ((typeof _app.room === "object") && (typeof _app.room.users[p.key] === "object")) ? _app.room.users[p.key].name : p.key;
-        //reset settings for start of a game
-        p.dealer = (p.key === dealerKey);
-
         return p;
       });
 
-      //If dealer not actual found, reset dealerKey to empty string
-      if ((dealerKey !== "") && (players.findIndex((v) => (v.key === dealerKey)) != -1)) {
-        dealerKey = "";
-      }
-
       //Set first player to dealer if none specified
       if ((dealerKey === "") && (players.length > 0)) {
-        players[0].dealer = true;
+        dealerKey = players[0].key
       }
+
+      _var.dealerKey = dealerKey;
 
       //update the private players variable with the new players
       _var.players = players;
