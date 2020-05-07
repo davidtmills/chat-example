@@ -284,8 +284,33 @@ $(function () {
     var $button = $(event.relatedTarget) // Button that triggered the dropdown
     var $menu = $(this).find("[data-template]");
     var tplName = $menu.attr("data-template");
+    console.log("Loading template " + tplName);
     _app.applyTemplate(tplName, _app, $menu);
   })
 
-
+  $('body').on('show.bs.dropdown', '*[data-listtype]', function(event){
+    /***
+      <button type="button" class="{{css}}{{item.css}}" styles="{{styles}}{{item.styles}}" {{attr}} {{item.attr}}>{{{html}}}|{{text}}|{{label}}</button>
+    ***/
+    var $el = $(this);
+    var $button = $(event.relatedTarget) // Button that triggered the dropdown
+    var $menu = $(this).find("*.dropdown-menu");
+    var target = $button.attr("id");
+    target = (!!target) ? "#" + target : "";
+    var listType = $el.attr("data-listtype");
+    var items = [];
+    var baseAttrs = { "data-action":"select", "data-target":target };
+    console.log("Loading list of " + listType);
+    switch (listType) {
+      case "users":
+        baseAttrs["data-args"] = "html|player-key|player-name";
+        items = Object.values(_app.room.users).map((v) => {
+          return { attr:{ "player-key":v.key, "player-name":v.name }, label:v.name }
+        });
+        //add an unselector item
+        items.push({ attr:{ "data-placeholder":"no selection", "player-key":"", "player-name":"" }, label:"" })
+        break;
+    }
+    _app.applyTemplate("itemlist", { css:"dropdown-item", attr:baseAttrs, items:items }, $menu);
+  })
 });

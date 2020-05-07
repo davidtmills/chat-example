@@ -61,6 +61,23 @@
 <!-- ###### ACTION LIST TEMPLATE ###### -->
     <script id="actionlist-template" type="text/x-handlebars-template">{{#with this.ctx}}{{#each this}}{{#if label}}<button type="button" class="dropdown-item" {{#if context}}{{context}}{{else}}stack{{/if}}-action="{{key}}"{{#each attr}} {{@key}}="{{this}}"{{/each}}>{{{label}}}</button>{{else}}<div class="dropdown-divider"></div>{{/if}}{{/each}}{{/with}}</script>
 
+<!-- ###### ITEM LIST TEMPLATE ###### -->
+  <script id="itemlist-template" type="text/x-handlebars-template">{{#with this.ctx~}}
+    {{~#each items}}<{{../tag}}{{#unless ../tag}}button type="button"{{/unless}}
+      class="{{../css}} {{css}}" style="{{../styles}} {{styles}}"
+      {{~#each ../attr}} {{@key}}="{{this}}"{{/each~}}
+      {{~#each attr}} {{@key}}="{{this}}"{{/each~}}
+      >{{~#if html~}}{{{html}}}
+      {{~else~}}
+        {{~#if text}}{{text}}
+        {{~else~}}
+          {{~#if label~}}{{label}}
+          {{~/if~}}
+        {{~/if~}}
+      {{~/if}}</{{../tag}}{{#unless ../tag}}button{{/unless}}>
+      {{~/each~}}
+  {{~/with}}</script>
+
 <!-- ###### STACK TEMPLATE ###### -->
     <script id="stack-template" type="text/x-handlebars-template">{{#with this.ctx}}
       <div stack="{{key}}" class="stack{{#unless viewable}} hidden{{/unless}} {{css}}" style="{{styles}}" stack-group="{{group}}" stack-layout="{{layout}}" stack-face="{{face}}" stack-owner="{{owner.key}}" stack-owner_name="{{owner.name}}" card-action="{{cardAction}}">
@@ -286,14 +303,9 @@
             <form>
               <div class="form-group">
                 <label for="joinGamePlayers">Dealer</label>
-                <div class="dropdown border rounded">
+                <div data-listtype="users" class="dropdown border rounded">
                   <button id="dlgGameStart_dealer" data-placeholder="Player 1" dealer-key="{{game.dealer.key}}" class="btn my-0 text-left down-arrow w-100" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{game.dealer.name}}</button>
-                  <div class="dropdown-menu w-100" aria-labelledby="player-{{@index}}Button">
-                    {{#each @root.app.room.users}}
-                    <button data-action="select" data-target="#dlgGameStart_dealer" data-args="html|player-key:dealer-key" player-key="{{key}}" player-name="{{name}}" type="button" class="dropdown-item">{{name}}</button>
-                    {{/each}}
-                    <button data-action="select" data-target="#dlgGameStart_dealer" data-args="html|player-key:dealer-key" player-key="" player-name="" data-placeholder="no selection" type="button" class="dropdown-item"></button>
-                  </div>
+                  <div class="dropdown-menu w-100" aria-labelledby="player-{{@index}}Button"></div>
                 </div>
               </div>
               <div class="form-group mb-2">
@@ -318,14 +330,9 @@
                       <span class="small" style="min-width:1.5rem">{{ordinal @index}}</span>
                     </div>
                   </div>
-                  <div class="flex-grow-1">
+                  <div data-listtype="users" class="flex-grow-1">
                     <button data-prop="player" id="dlgGameStart_player_{{@index}}" data-placeholder="select a player &hellip;" player-key="{{key}}" player-name="{{name}}" class="btn my-0 text-left w-100 down-arrow" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">{{name}}</button>
-                    <div class="dropdown-menu" style="min-width:11rem;" aria-labelledby="player-{{@index}}Button">
-                      {{#each @root.app.room.users}}
-                      <button data-action="select" data-target="#dlgGameStart_player_{{../index}}" data-args="html|player-key|player-name" player-key="{{key}}" player-name="{{name}}" type="button" class="dropdown-item">{{name}}</button>
-                      {{/each}}
-                      <button data-action="select" data-target="#dlgGameStart_player_{{@index}}" data-args="html|player-key|player-name" data-placeholder="no selection" type="button" class="dropdown-item" player-key="" player-name=""></button>
-                    </div>
+                    <div class="dropdown-menu" style="min-width:11rem;" aria-labelledby="player-{{@index}}Button"></div>
                   </div>
                 </div>
                 {{/each}}
