@@ -655,7 +655,6 @@ var Game = function (application, pGameType, pGameState) {
       var optReset = { folded:false };
       var config = this.config;
       var dealerKey = config.dealerKey;
-      var activeKey = config.activeKey;
       var desiredPlayers = (typeof pDesiredPlayers === "number") ? pDesiredPlayers : (Array.isArray(pPlayers)) ? pPlayers.length : config.maxPlayers;
       var players = (Array.isArray(pPlayers)) ? pPlayers.slice() : _var.players.slice();
       var room = (typeof _app.room === "object") ? _app.room : { users:{} };
@@ -691,18 +690,19 @@ var Game = function (application, pGameType, pGameState) {
         return p;
       });
 
+
       //Set first player to dealer if none specified
-      if ((dealerKey === "") && (players.length > 0)) {
+      if (!!!dealerKey && (players.length > 0)) {
         dealerKey = players[0].key;
       }
 
-      if (activeKey === "") {
+      if (!!!activeKey) {
         activeKey = dealerKey;
       }
 
       _var.players = players;
       _var.dealerKey = dealerKey;
-      _var.activeKey = activeKey;
+      _var.activeKey = (!!config.activeKey) config.activeKey : dealerKey;
 
     },
     enumerable: false
@@ -977,7 +977,7 @@ var Game = function (application, pGameType, pGameState) {
       });
 
       //Set first player to dealer if none specified
-      if ((dealerKey === "") && (players.length > 0)) {
+      if (!!!dealerKey && (players.length > 0)) {
         dealerKey = players[0].key
       }
 
