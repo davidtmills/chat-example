@@ -696,13 +696,9 @@ var Game = function (application, pGameType, pGameState) {
         dealerKey = players[0].key;
       }
 
-      if (!!!activeKey) {
-        activeKey = dealerKey;
-      }
-
       _var.players = players;
       _var.dealerKey = dealerKey;
-      _var.activeKey = (!!config.activeKey) config.activeKey : dealerKey;
+      _var.activeKey = (!!config.activeKey) ? config.activeKey : dealerKey;
 
     },
     enumerable: false
