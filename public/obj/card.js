@@ -252,8 +252,24 @@ var Card = function (application, config) {
     enumerable: false
   });
 
+  Object.defineProperty(this,"owner",{
+    get: function() {
+      return (!!_var.stack) ? this.stack.owner : { key:"", name:"" };
+    },
+    enumerable: false
+  });
+
+  Object.defineProperty(this,"prevOwner",{
+    get: function() {
+      return (!!_var.prevStack) ? this.prevStack.owner : { key:"", name:"" };
+    },
+    enumerable: false
+  });
+
   Object.defineProperty(this,"prevStack",{
-    get: function() { return ((typeof _var.prevStack == "string") && (_var.prevStack != "")) ? _app.game.getStack(_var.prevStack) : ""; },
+     get: function() {
+       return ((typeof _var.prevStack == "string") && (_var.prevStack != "")) ? _app.game.getStack(_var.prevStack) : "";
+     },
     enumerable: false
   });
 
