@@ -132,11 +132,10 @@ function Action (application, pContext, pConfig) {
        *    owner_bank, owner_pot, owner_bet, owner_bid, owner_tricks
        *    cardCount, selCount, unselCount, upCount, downCount
        **/
+       var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
+       var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
        var stack = _ctx;
-       var stackData = _app.prefix(stack, "", ["cardKeys","lastUpdate","lastRefresh","initUp","initDown","stackMenu"], {owner:"owner_"} );
-       var userData = _app.prefix(_app.user, "user_", ["avatar","email","lastRefresh","lastUpdate","photo"], {});
-       var playerData = _app.prefix(_app.user.player, "player_", ["toJSON","state","lastUpdate","lastRefresh","refreshUI","name","seat"], { bidding:"bid_" });
-       var obj = Object.assign({ }, stackData, userData, playerData );
+       var obj = Object.assign({ }, userData, playerData, _app.prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
        var result = _app.check(obj, _actionFilters);
        return result;
     },
@@ -164,10 +163,9 @@ function Action (application, pContext, pConfig) {
       var matches = [];
       cards.forEach((v) => {
         var card = _app.game.getCard(v);
-        var userData = _app.prefix(_app.user, "user_", ["avatar","email","lastRefresh","lastUpdate","photo"], {});
-        var playerData = _app.prefix(_app.user.player, "player_", ["toJSON","state","lastUpdate","lastRefresh","refreshUI","name","seat"], { bidding:"bid_" });
-        var cardData = _app.prefix(card, "", ["lastUpdate","lastRefresh","css","details"], {});
-        var obj = Object.assign({ }, cardData, userData, playerData );
+        var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
+        var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
+        var obj = Object.assign({ }, userData, playerData, _app.prefix(card, "", [], { stack:"stack_", prevStack:"prevStack_" }) );
         if (_app.check(obj, filters)) {
           matches.push(card);
         }
@@ -189,14 +187,12 @@ function Action (application, pContext, pConfig) {
        *    cardCount, selCount, unselCount, upCount, downCount.
        **/
       var matches = [];
-      var filters = _stackFilters;
+      var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
+      var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
       Object.values(_app.game.stacks).forEach(function(v){
         var stack = v;
-        var stackData = _app.prefix(stack, "", ["cardKeys","lastUpdate","lastRefresh","initUp","initDown","stackMenu"], {owner:"owner_"} );
-        var userData = _app.prefix(_app.user, "user_", ["avatar","email","lastRefresh","lastUpdate","photo"], {});
-        var playerData = _app.prefix(_app.user.player, "player_", ["toJSON","state","lastUpdate","lastRefresh","refreshUI","name","seat"], { bidding:"bid_" });
-        var obj = Object.assign({ }, stackData, userData, playerData );
-        if (_app.check(obj, filters)) {
+        var obj = Object.assign({ }, userData, playerData, _app.prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
+        if (_app.check(obj, _stackFilters)) {
           matches.push(stack);
         }
       });
@@ -252,7 +248,6 @@ function Action (application, pContext, pConfig) {
 
   Object.defineProperty(this,"init",{
     value: function(pContext, pConfig, pFn) {
-      console.log("INIT", pContext, pConfig, pFn)
       _cfg = (!!pConfig) ? pConfig : {};
       _key = (!!_cfg.key) ? _cfg.key :  _app.randomCode(8, "A");
       _action = (typeof _cfg.action === "function") ? _cfg.action.bind(this) : (_cfg.action && (typeof _actions[_cfg.action] === "function")) ? _actions[_cfg.action].bind(this) : undefined;
@@ -308,7 +303,6 @@ function Action (application, pContext, pConfig) {
   }
 
   var _parseActionFilter = function (pInput) {
-    console.log("PARSE",pInput)
     var obj = [];
     if (Array.isArray(pInput)) {
       obj = pInput;

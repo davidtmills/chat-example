@@ -145,8 +145,9 @@ var Stack = function (application, config) {
 
   Object.defineProperty(this,"owner",{
     get: function() {
-      var user = _app.getUser(_var.owner);
-      return (user && user.name) ? { key:user.key, name:user.name } : { key:_var.owner, name:_var.owner };
+      var playerKey = _var.owner;
+      var player = (typeof _app.game === "object") ? _app.game.getPlayer(playerKey) : undefined;
+      return (typeof player === "object") ? player : { key:playerKey, name:playerKey };
     },
     set: function(keyOrObject) {
       var value = (typeof keyOrObject == "object") ? keyOrObject.key : (typeof keyOrObject == "string") ? keyOrObject : "";
@@ -376,10 +377,9 @@ var Stack = function (application, config) {
   Object.defineProperty(this,"stackMenu",{
     get: function() {
       var stack = this;
-      var stackData = _app.prefix(stack, "", ["cardMenu","cardKeys","lastUpdate","lastRefresh","initUp","initDown","stackMenu"], {owner:"owner_"} );
-      var userData = _app.prefix(_app.user, "user_", ["avatar","email","lastRefresh","lastUpdate","photo"], {});
-      var playerData = _app.prefix(_app.user.player, "player_", ["toJSON","state","lastUpdate","lastRefresh","refreshUI","name","seat"], { bidding:"bid_" });
-      var obj = Object.assign({ }, stackData, userData, playerData );
+      var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
+      var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
+      var obj = Object.assign({ }, userData, playerData, _app.prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
       var menu = stack.actions.filter(v => _app.check(obj, v["actionFilter"]));
       var html = _app.applyTemplate("actionlist", menu);
       return html;
@@ -390,10 +390,9 @@ var Stack = function (application, config) {
   Object.defineProperty(this,"cardMenu",{
     get: function() {
       var stack = this;
-      var stackData = _app.prefix(stack, "", ["cardMenu","cardKeys","lastUpdate","lastRefresh","initUp","initDown","stackMenu"], {owner:"owner_"} );
-      var userData = _app.prefix(_app.user, "user_", ["avatar","email","lastRefresh","lastUpdate","photo"], {});
-      var playerData = _app.prefix(_app.user.player, "player_", ["toJSON","state","lastUpdate","lastRefresh","refreshUI","name","seat"], { bidding:"bid_" });
-      var obj = Object.assign({ }, stackData, userData, playerData );
+      var userData = _app.prefix(_app.user, "user_", ["avatar","email","key","lastRefresh","lastUpdate","name","photo","username"]);
+      var playerData = _app.prefix(_app.game.getPlayer(_app.user.key), "player_");
+      var obj = Object.assign({ }, userData, playerData, _app.prefix(stack, "", ["actors","cardKeys","cardMenu","initDown","initUp","lastRefresh","lastUpdate","stackMenu"], { owner:"owner_" }) );
       var menu = stack.cardActions.filter(v => _app.check(obj, v["actionFilter"]));
       var html = _app.applyTemplate("actionlist", menu);
       return html;

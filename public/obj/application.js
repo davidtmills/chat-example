@@ -346,17 +346,13 @@ var Application = function (appKey, socket) {
               if (Array.isArray(src[k])) {
                 //if an array return the length
                 obj[prefix + k] = src[k].length;
-              } else if (k === "owner") {
-                if (typeof src[k].key === "string") {
-                  obj[prefix + "ownerKey"] = src[k].key;
-                  obj[prefix + "owner"] = (_app.user && _app.user.key && (src[k].key === _app.user.key));
-                } else if (typeof src[k] === "string") {
-                  obj[prefix + "ownerKey"] = src[k].key;
-                }
               } else if (typeof expand[k] === "string") {
                 //otherwise expand if in expand hash
-                console.log("expand " + k + " of ", src)
                 Object.assign(obj, _app.prefix(src[k], expand[k]));
+              }
+              //special case for owner add as true/false based on match of current user
+              if ((k === "owner") && (typeof src[k].key === "string")) {
+                obj["owner"] = (_app.user && _app.user.key && (src[k].key === _app.user.key));
               }
               break;
             default:
@@ -364,6 +360,7 @@ var Application = function (appKey, socket) {
           }
         }
       });
+
       return obj;
     },
     enumerable:false
@@ -374,7 +371,7 @@ var Application = function (appKey, socket) {
      * Summary: Checks if the passed state object meets any or all of passed condition filters
      **/
     value: function(pState, pConditionSets, pMatchAll) {
-      return true;
+
       var k, filter;
       var filters = (Array.isArray(pConditionSets)) ? pConditionSets : (typeof pConditionSets === "object") ? [pConditionSets] : [];
       var chkItem = pState;
@@ -743,14 +740,14 @@ var Application = function (appKey, socket) {
       stacks:[
         { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"noone", layout:"stack", face:"down", cardAction:"none"},
         { key:"shared", label:"Table", shared:true, viewable:true, actionable:"everyone", layout:"fan", face:"up", initUp:1, cardAction:"none", actions:[
-          { key:"orderUp", label:"Order up", action:"give", actionFilter:{ upCards:1, cards:1, user_dealer:false }, stackFilter:{ group:"hand", owner_dealer:true }, cardFilter:{ face:'up' }, cardFace:"down" },
-          { key:"pickUp", label:"Pick up", action:"give", actionFilter:{ upCards:1, cards:1, user_dealer:true }, stackFilter:{ group:"hand", owner_dealer:true }, cardFilter:{ face:'up' }, cardFace:"down" },
-          { key:"turnDown", label:"Turn down", action:"flip", actionFilter:{ upCards:1, cards:1, user_dealer:true }, cardFace:"down" },
+          { key:"orderUp", label:"Order up", action:"give", actionFilter:{ upCards:1, cards:1, player_dealer:false }, stackFilter:{ group:"hand", owner_dealer:true }, cardFilter:{ face:'up' }, cardFace:"down" },
+          { key:"pickUp", label:"Pick up", action:"give", actionFilter:{ upCards:1, cards:1, player_dealer:true }, stackFilter:{ group:"hand", owner_dealer:true }, cardFilter:{ face:'up' }, cardFace:"down" },
+          { key:"turnDown", label:"Turn down", action:"flip", actionFilter:{ upCards:1, cards:1, player_dealer:true }, cardFace:"down" },
           { key:"claim", label:"Claim", action:"give", actionFilter:{ upCards:4, cards:4 }, stackFilter:{ group:"tricks", owner:true }, cardFace:"down" }
         ]},
         { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initDown:5, sort:"suit", cardAction:"menu",
           cardActions:[
-            { key:"discard", label:"Discard", action:"give", actionFilter:{ selectedCards:1, cards:6, user_dealer:true }, stackFilter:{ group:"deck" }, cardFace:"down" },
+            { key:"discard", label:"Discard", action:"give", actionFilter:{ selectedCards:1, cards:6, player_dealer:true }, stackFilter:{ group:"deck" }, cardFace:"down" },
             { key:"play", label:"Play", action:"give", actionFilter:{ selectedCards:1, cards:-5 }, stackFilter:{ group:"shared" }, cardFace:"down" }
           ]
         },
@@ -768,14 +765,14 @@ var Application = function (appKey, socket) {
       chat:[],
       stacks:[
         { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"everyone", layout:"stack", face:"down", cardAction:"menu", actions:[
-          { key:"deal3", label:"Deal 3", action:"deal", actionFilter:{ user_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:3 },
-          { key:"deal4", label:"Deal 4", action:"deal", actionFilter:{ user_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:4 },
-          { key:"deal5", label:"Deal 5", action:"deal", actionFilter:{ user_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:5 },
-          { key:"deal6", label:"Deal 6", action:"deal", actionFilter:{ user_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:6 },
-          { key:"deal7", label:"Deal 7", action:"deal", actionFilter:{ user_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:7 },
-          { key:"deal8", label:"Deal 8", action:"deal", actionFilter:{ user_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:8 },
-          { key:"deal9", label:"Deal 9", action:"deal", actionFilter:{ user_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:9 },
-          { key:"deal10", label:"Deal 10", action:"deal", actionFilter:{ user_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:10 },
+          { key:"deal3", label:"Deal 3", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:3 },
+          { key:"deal4", label:"Deal 4", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:4 },
+          { key:"deal5", label:"Deal 5", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:5 },
+          { key:"deal6", label:"Deal 6", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:6 },
+          { key:"deal7", label:"Deal 7", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:7 },
+          { key:"deal8", label:"Deal 8", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:8 },
+          { key:"deal9", label:"Deal 9", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:9 },
+          { key:"deal10", label:"Deal 10", action:"deal", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"down", numCards:10 },
         ], cardActions:[
           { key:"draw", label:"Draw", action:"give", stackFilter:{ group:"hand", owner:true }, cardFace:"down", message:"drew a card" },
         ] },
@@ -805,7 +802,7 @@ var Application = function (appKey, socket) {
           { key:"flop", label:"Flop", action:"deal", stackFilter:{ group:"shared" }, cardFace:"up", numCards:3 },
           { key:"turn", label:"Turn", action:"deal", stackFilter:{ group:"shared" }, cardFace:"up" },
           { key:"river", label:"River", action:"deal", stackFilter:{ group:"shared" }, cardFace:"up" },
-          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:[{ user_dealer:true }], stackFilter:{ group:"hand" }, cardFace:'up' }
+          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:[{ player_dealer:true }], stackFilter:{ group:"hand" }, cardFace:'up' }
         ] },
         { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initDown:2, cardAction:"none", actions:[
           { key:"fold", label:"Fold", action:"fold", actionFilter:[] },
@@ -827,7 +824,7 @@ var Application = function (appKey, socket) {
       stacks:[
         { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", layout:"stack", face:"down", cardAction:"none", actions:[
           { key:"deal", label:"Deal", action:"give", stackFilter:{ group:"shared" }, cardFace:"down", cards:5 },
-          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:[{ user_dealer:true }], stackFilter:{ group:"hand" }, cardFace:'up' }
+          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:[{ player_dealer:true }], stackFilter:{ group:"hand" }, cardFace:'up' }
         ] },
         { key:"shared", label:"Community", shared:true, viewable:true, actionable:"everyone", layout:"cross", face:"down", initDown:5, cardAction:"flip" },
         { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initDown:2, cardAction:"none", actions:[
@@ -850,8 +847,8 @@ var Application = function (appKey, socket) {
       chat:["Fold","Check","Call","Raise"],
       stacks:[
         { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", layout:"stack", face:"down", cardAction:"none", actions:[
-          { key:"deal", label:"Deal", action:"give", actionFilter:{ user_dealer:true }, stackFilter:{ group:"shared" }, cardFace:"down", cards:5 },
-          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:{ user_dealer:true }, stackFilter:{ group:"hand" }, cardFace:'up' }
+          { key:"deal", label:"Deal", action:"give", actionFilter:{ player_dealer:true }, stackFilter:{ group:"shared" }, cardFace:"down", cards:5 },
+          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:'up' }
         ] },
         { key:"discard", label:"Discard", shared:true, viewable:true, actionable:"dealer", layout:"stack", face:"down", cardAction:"none" },
         { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initDown:5, sort:"rank", cardAction:"select", actions:[
@@ -874,8 +871,8 @@ var Application = function (appKey, socket) {
       chat:["Fold","Check","Call","Raise"],
       stacks:[
         { key:"deck", label:"Deck", shared:true, viewable:true, actionable:"dealer", layout:"stack", face:"down", cardAction:"none", actions:[
-          { key:"deal", label:"Deal", action:"give", actionFilter:{ user_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"up", cards:1 },
-          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:{ user_dealer:true }, stackFilter:{ group:"hand" }, cardFace:'up' }
+          { key:"deal", label:"Deal", action:"give", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:"up", cards:1 },
+          { key:"reveal", label:"Reveal Hands", action:"flip", actionFilter:{ player_dealer:true }, stackFilter:{ group:"hand" }, cardFace:'up' }
         ] },
         { key:"hand", label:"Hand", shared:false, viewable:true, actionable:"owner", layout:"fan", face:"down", initUp:3, initDown:2, cardAction:"select", actions:[
           { key:"fold", label:"Fold", action:"fold", actionFilter:[] },
